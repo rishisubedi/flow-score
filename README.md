@@ -1,3 +1,61 @@
-# FlowScore API
+# FlowScore API 🌊💳
 
-Please see [TECHNICAL_SPECIFICATION.md](TECHNICAL_SPECIFICATION.md) for the full architecture and sprint plan.
+**An AI-Powered, Open Banking Credit Underwriting Engine for "Thin-File" Customers.**
+
+FlowScore API is a B2B SaaS Risk Engine that leverages Multi-Agent AI to analyze Open Banking transaction data, providing fair, dynamic, and strictly explainable credit risk scores.
+
+## 🇬🇧 Our Mission: Democratizing Credit in the UK
+
+In the UK, millions of people are locked out of the financial system or forced to rely on predatory, high-interest payday loans because they are deemed "thin-file" by traditional credit bureaus (Experian, Equifax, TransUnion). 
+
+These underserved groups primarily include:
+* **Immigrants & Expats:** New arrivals to the UK who have no local credit footprint, despite often having strong earning potential and responsible financial habits.
+* **Gig-Economy & Freelance Workers:** Uber drivers, Deliveroo riders, and self-employed creators whose income is volatile or irregular. Legacy banks struggle to underwrite these profiles because standard Debt-to-Income (DTI) models expect a fixed monthly salary.
+* **Young Adults:** Those entering the financial system for the first time without prior credit cards or mortgages.
+
+### How FlowScore Fixes This
+FlowScore bypasses the traditional, outdated credit score. Instead, it ingests 12 months of rich, real-time **Open Banking data** (e.g., via TrueLayer or Plaid) and uses a network of specialized AI agents to evaluate a borrower's *true* cash flow. 
+
+* An **Income Analyst Agent** measures the stability, frequency, and trajectory of gig-economy payouts.
+* An **Expense Tracker Agent** isolates strict baseline living costs (rent, utilities, groceries) from discretionary spending.
+
+**FCA Consumer Duty Compliance:**
+In the UK financial sector, transparency is legally mandated. FlowScore is built strictly around the **FCA Consumer Duty** rules. Instead of an unexplainable "black-box" AI decision, FlowScore’s Supervisor Agent synthesizes the data and outputs a strict, natural-language **Audit Trail**. This ensures algorithmic transparency, fair value, and guarantees that lenders can clearly explain exactly *why* a decision was made to the consumer.
+
+---
+
+## 🛠 Core Tech Stack
+* **Backend:** Python 3.11+, FastAPI
+* **AI Orchestration:** LangGraph (Multi-Agent State Management)
+* **LLMs:** OpenAI GPT-4o / Claude 3.5 Sonnet
+* **Data Validation:** Pydantic (Strict Output Parsing)
+* **Database:** PostgreSQL (SQLAlchemy & Alembic)
+* **Infrastructure:** Docker & docker-compose (Optimized for GCP Cloud Run)
+
+## 🚀 Getting Started
+
+To run the FlowScore API MVP locally:
+
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/rishisubedi/flow-score.git
+   cd flow-score
+   ```
+
+2. **Configure the Environment:**
+   Copy the example environment file and insert your API keys (e.g., OpenAI).
+   ```bash
+   cp .env.example .env
+   ```
+
+3. **Start the Infrastructure:**
+   Use Docker Compose to spin up the FastAPI web server and the local PostgreSQL database simultaneously.
+   ```bash
+   docker-compose up --build
+   ```
+
+4. **Access the API:**
+   Once running, navigate to `http://localhost:8080/docs` to interact with the auto-generated Swagger UI documentation.
+
+## 📄 Documentation & Architecture
+For a deep dive into the Multi-Agent consensus network, the database schema, and our rapid sprint plan, please read the [Technical Specification Document (TSD)](TECHNICAL_SPECIFICATION.md).
