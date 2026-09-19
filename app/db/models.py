@@ -6,6 +6,7 @@ class CreditDecision(Base):
     __tablename__ = "credit_decisions"
 
     id = Column(Integer, primary_key=True, index=True)
+    client_id = Column(String, index=True, nullable=False)  # Multi-tenant ID
     applicant_id = Column(String, index=True, nullable=False)
     
     # Core output metrics
@@ -13,7 +14,7 @@ class CreditDecision(Base):
     decision = Column(String, nullable=False)  # APPROVED, REJECTED, MANUAL_REVIEW
     dti_ratio = Column(Float, nullable=False)
     
-    # FCA Compliance Audit Trail (stored as JSON)
+    # FCA Compliance Audit Trail (Dual-layer stored as JSON)
     audit_trail = Column(JSON, nullable=False)
     
     # Timestamps
