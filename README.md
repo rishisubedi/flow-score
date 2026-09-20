@@ -61,6 +61,10 @@ To run the FlowScore API MVP locally:
 
 ## 📈 Current Project Status (10-Day Sprint)
 
+**Sprint Completion: 40%**
+`[████......]`
+
+
 * **[x] Day 1:** Core Infrastructure, Dockerization, and FastAPI Setup.
 * **[x] Day 2:** PostgreSQL Database, SQLAlchemy ORM, and Strict Pydantic Schemas.
 * **[x] Day 3:** Core POST `/v1/underwrite` endpoint, Dependency Injection, and Async Webhooks.
@@ -71,6 +75,13 @@ To run the FlowScore API MVP locally:
 * **[ ] Day 8:** Database Integration & Final Output Formatting.
 * **[ ] Day 9:** Edge Cases, Pytest, & Handling LLM Hallucinations.
 * **[ ] Day 10:** Final Polish, Demo Prep, & Cloud Run Deployment.
+
+### 🧠 Multi-Agent Architecture (LangGraph)
+The AI decision-making pipeline utilizes a highly optimized **Fan-Out / Fan-In** LangGraph architecture:
+1. **Ingestion Node:** Parses strict Pydantic schemas and auto-categorizes B2B open banking payloads.
+2. **Parallel Fan-Out:** Data is routed simultaneously to the `Income Analyst` and `Expense Tracker` nodes, cutting LLM inference latency in half.
+3. **Synchronized Fan-In:** The custom `merge_lists` reducer guarantees that parallel outputs and errors don't overwrite each other in the `AgentState` TypedDict.
+4. **Supervisor Node:** Synthesizes the parallel data to generate the final FCA-compliant audit trail and DTI calculation.
 
 ### 💼 Enterprise Features Built-In
 During the first three days, we injected several commercial improvements to maximize our Total Addressable Market (TAM):
