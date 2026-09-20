@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from app.core.config import settings
 
 # Initialize FastAPI application
 app = FastAPI(
@@ -30,5 +31,7 @@ def health_check():
     """
     return {"status": "ok", "service": "FlowScore API"}
 
-# We will include our underwriting router here in the next sprint days
-# app.include_router(underwrite.router, prefix="/v1")
+from app.api.v1.router import api_router
+
+# Include API v1 router
+app.include_router(api_router, prefix=settings.API_V1_STR)

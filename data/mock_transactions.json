@@ -1,0 +1,37 @@
+[
+  {
+    "transaction_id": "tx_1001",
+    "date": "2023-10-01T09:00:00Z",
+    "amount": 450.00,
+    "description": "UBER B.V. EARNINGS",
+    "category": "INCOME_GIG"
+  },
+  {
+    "transaction_id": "tx_1002",
+    "date": "2023-10-02T10:00:00Z",
+    "amount": -150.00,
+    "description": "BRITISH GAS DIRECT DEBIT",
+    "category": "UTILITIES"
+  },
+  {
+    "transaction_id": "tx_1003",
+    "date": "2023-10-05T14:30:00Z",
+    "amount": -45.50,
+    "description": "TESCO STORES",
+    "category": "GROCERIES"
+  },
+  {
+    "transaction_id": "tx_1004",
+    "date": "2023-10-08T11:00:00Z",
+    "amount": 320.00,
+    "description": "DELIVEROO WEEKLY PAY",
+    "category": "INCOME_GIG"
+  },
+  {
+    "transaction_id": "tx_1005",
+    "date": "2023-10-15T08:00:00Z",
+    "amount": -850.00,
+    "description": "OAKWOOD PROPERTIES RENT",
+    "category": "RENT"
+  }
+]
