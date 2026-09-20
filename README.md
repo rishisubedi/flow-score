@@ -57,5 +57,27 @@ To run the FlowScore API MVP locally:
 4. **Access the API:**
    Once running, navigate to `http://localhost:8080/docs` to interact with the auto-generated Swagger UI documentation.
 
+---
+
+## 📈 Current Project Status (10-Day Sprint)
+
+* **[x] Day 1:** Core Infrastructure, Dockerization, and FastAPI Setup.
+* **[x] Day 2:** PostgreSQL Database, SQLAlchemy ORM, and Strict Pydantic Schemas.
+* **[x] Day 3:** Core POST `/v1/underwrite` endpoint, Dependency Injection, and Async Webhooks.
+* **[ ] Day 4:** LangGraph Foundation & State Definition.
+* **[ ] Day 5:** Income Analyst Agent Implementation.
+* **[ ] Day 6:** Expense Tracker Agent Implementation.
+* **[ ] Day 7:** Supervisor Agent & FCA Explainability Layer.
+* **[ ] Day 8:** Database Integration & Final Output Formatting.
+* **[ ] Day 9:** Edge Cases, Pytest, & Handling LLM Hallucinations.
+* **[ ] Day 10:** Final Polish, Demo Prep, & Cloud Run Deployment.
+
+### 💼 Enterprise Features Built-In
+During the first three days, we injected several commercial improvements to maximize our Total Addressable Market (TAM):
+* **O(1) Multi-Tenancy:** Securely support hundreds of B2B lenders on the same database.
+* **Async Webhooks:** Non-blocking callbacks allowing Enterprise clients to receive underwriting decisions without HTTP timeouts.
+* **Injectable Risk Appetites:** Lenders can inject their own custom DTI and income thresholds into the API payload.
+* **Dual-Layer Audit Trails:** Outputs a dense compliance log for the bank's risk officers, alongside a polite, consumer-facing explanation for their UI.
+
 ## 📄 Documentation & Architecture
-For a deep dive into the Multi-Agent consensus network, the database schema, and our rapid sprint plan, please read the [Technical Specification Document (TSD)](TECHNICAL_SPECIFICATION.md).
+For a deep dive into the Multi-Agent consensus network and the database schema, please read the [Technical Specification Document (TSD)](TECHNICAL_SPECIFICATION.md).
