@@ -1,10 +1,9 @@
 from langgraph.graph import StateGraph, END
 from app.agents.state import AgentState
 from app.agents.nodes.ingestion import ingestion_node
+from app.agents.nodes.income import income_analyst_node
 
-# --- Stubs for Days 5, 6, and 7 ---
-def income_node_stub(state: AgentState) -> dict:
-    return {"income_metrics": {"status": "pending_day_5"}}
+# --- Stubs for Days 6, and 7 ---
 
 def expense_node_stub(state: AgentState) -> dict:
     return {"expense_metrics": {"status": "pending_day_6"}}
@@ -22,7 +21,7 @@ def build_graph():
     
     # 2. Add all agent nodes to the graph
     workflow.add_node("ingestion", ingestion_node)
-    workflow.add_node("income_analyst", income_node_stub)
+    workflow.add_node("income_analyst", income_analyst_node)
     workflow.add_node("expense_tracker", expense_node_stub)
     workflow.add_node("supervisor", supervisor_node_stub)
     
