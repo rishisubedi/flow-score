@@ -1,11 +1,16 @@
 from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 from sqlalchemy.orm import Session
 import httpx
+import asyncio
+import logging
 
 from app.db.database import get_db
 from app.core.security import get_client_id
-from app.models.schemas import UnderwritingRequest, CreditDecisionOutput, FCAAuditTrail, InternalComplianceLog
+from app.models.schemas import UnderwritingRequest, CreditDecisionOutput
+from app.db.models import CreditDecision
+from app.agents.graph import underwriting_graph
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 async def process_webhook_callback(webhook_url: str, payload: dict):
@@ -17,11 +22,33 @@ async def process_webhook_callback(webhook_url: str, payload: dict):
         try:
             # Send the payload to the client's webhook URL
             await client.post(str(webhook_url), json=payload, timeout=10.0)
+            logger.info(f"Webhook successfully delivered to {webhook_url}")
         except httpx.RequestError as exc:
-            # In a production environment, you would log this to Sentry or Datadog
-            print(f"Webhook delivery failed for {exc.request.url!r}. Reason: {exc}")
+            # In a production environment, log this to Sentry/Datadog
+            logger.error(f"Webhook delivery failed for {exc.request.url!r}. Reason: {exc}")
 
-@router.post("/", response_model=CreditDecisionOutput, status_code=status.HTTP_202_ACCEPTED)
+def execute_langgraph_workflow(request_data: dict) -> dict:
+    """
+    Executes the compiled LangGraph workflow synchronously.
+    We wrap this in a threadpool downstream to prevent blocking the async event loop.
+    """
+    # Initialize the AgentState payload
+    initial_state = {
+        "applicant_id": request_data.get("applicant_id"),
+        "transactions": request_data.get("transactions", []),
+        "policy": request_data.get("policy", {}),
+        "categorized_transactions": [],
+        "income_metrics": {},
+        "expense_metrics": {},
+        "final_decision": None,
+        "errors": []
+    }
+    
+    # Trigger the multi-agent AI pipeline
+    final_state = underwriting_graph.invoke(initial_state)
+    return final_state
+
+@router.post("/", response_model=CreditDecisionOutput, status_code=status.HTTP_201_CREATED)
 async def submit_underwriting_request(
     request: UnderwritingRequest,
     background_tasks: BackgroundTasks,
@@ -30,42 +57,52 @@ async def submit_underwriting_request(
 ):
     """
     Submit a list of Open Banking transactions for AI underwriting analysis.
+    The LangGraph network processes it, persists it to PostgreSQL, and fires an async webhook.
     """
     try:
-        # [PLACEHOLDER] Day 4-7: Trigger the LangGraph Agent Workflow here.
-        # For Day 3, we mock the response to solidify the API contract.
+        # 1. Offload the heavy AI reasoning to an asyncio ThreadPool
+        # This guarantees high-concurrency for our FastAPI web server
+        request_dict = request.model_dump()
+        final_state = await asyncio.to_thread(execute_langgraph_workflow, request_dict)
         
-        mock_response = CreditDecisionOutput(
-            applicant_id=request.applicant_id,
-            risk_score=750,
-            decision="APPROVED",
-            dti_ratio=0.35,
-            audit_trail=FCAAuditTrail(
-                internal_compliance_log=InternalComplianceLog(
-                    income_volatility_score=0.15,
-                    expense_baseline=800.0,
-                    affordability_logic="DTI calculated at 35% based on 12-month average."
-                ),
-                customer_facing_explanation="Based on your stable income trajectory, we are happy to approve you.",
-                consumer_duty_statement="This decision was made transparently and offers fair value to the consumer."
-            )
-        )
+        # 2. Extract the structured LLM output
+        decision_data = final_state.get("final_decision")
+        if not decision_data:
+            raise ValueError(f"LangGraph failed to produce a final decision. Errors: {final_state.get('errors')}")
 
-        # TODO: Save mock_response to Database (Day 8)
+        # Ensure the output maps perfectly to our Pydantic schema
+        final_output = CreditDecisionOutput(**decision_data)
+
+        # 3. Database Persistence (Day 8 Integration)
+        # Store the decision in PostgreSQL tied securely to the specific client_id tenant
+        db_record = CreditDecision(
+            client_id=client_id,
+            applicant_id=final_output.applicant_id,
+            risk_score=final_output.risk_score,
+            decision=final_output.decision,
+            dti_ratio=final_output.dti_ratio,
+            audit_trail=final_output.audit_trail.model_dump(mode='json')
+        )
+        db.add(db_record)
+        db.commit()
+        db.refresh(db_record)
+        logger.info(f"Database persist successful. DB ID: {db_record.id}")
         
-        # Dispatch the async webhook if the client provided one
+        # 4. Dispatch the async webhook if the client provided one
         if request.webhook_url:
             background_tasks.add_task(
                 process_webhook_callback, 
                 webhook_url=request.webhook_url, 
-                payload=mock_response.model_dump(mode='json')
+                payload=final_output.model_dump(mode='json')
             )
             
-        return mock_response
+        return final_output
         
     except Exception as e:
-        # Catch-all to prevent unhandled exceptions from crashing the server
+        logger.error(f"Underwriting Error: {str(e)}")
+        # Rollback the DB session in case of partial write failure
+        db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"An error occurred during underwriting processing: {str(e)}"
+            detail=f"An error occurred during AI processing: {str(e)}"
         )
