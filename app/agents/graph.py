@@ -3,11 +3,9 @@ from app.agents.state import AgentState
 from app.agents.nodes.ingestion import ingestion_node
 from app.agents.nodes.income import income_analyst_node
 from app.agents.nodes.expense import expense_analyst_node
+from app.agents.nodes.supervisor import supervisor_node
 
-# --- Stubs for Day 7 ---
-
-def supervisor_node_stub(state: AgentState) -> dict:
-    return {"final_decision": None} # Placeholder until Day 7
+# All nodes are now fully implemented!
 
 def build_graph():
     """
@@ -21,7 +19,7 @@ def build_graph():
     workflow.add_node("ingestion", ingestion_node)
     workflow.add_node("income_analyst", income_analyst_node)
     workflow.add_node("expense_tracker", expense_analyst_node)
-    workflow.add_node("supervisor", supervisor_node_stub)
+    workflow.add_node("supervisor", supervisor_node)
     
     # 3. Define the Control Flow (Edges)
     

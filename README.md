@@ -71,7 +71,7 @@ To run the FlowScore API MVP locally:
 * **[x] Day 4:** LangGraph Foundation & State Definition.
 * **[x] Day 5:** Income Analyst Agent Implementation.
 * **[x] Day 6:** Expense Tracker Agent Implementation.
-* **[ ] Day 7:** Supervisor Agent & FCA Explainability Layer.
+* **[x] Day 7:** Supervisor Agent & FCA Explainability Layer.
 * **[ ] Day 8:** Database Integration & Final Output Formatting.
 * **[ ] Day 9:** Edge Cases, Pytest, & Handling LLM Hallucinations.
 * **[ ] Day 10:** Final Polish, Demo Prep, & Cloud Run Deployment.
