@@ -61,8 +61,8 @@ To run the FlowScore API MVP locally:
 
 ## 📈 Current Project Status (10-Day Sprint)
 
-**Sprint Completion: 40%**
-`[████......]`
+**Sprint Completion: 80%**
+`[████████..]`
 
 
 * **[x] Day 1:** Core Infrastructure, Dockerization, and FastAPI Setup.
@@ -84,10 +84,11 @@ The AI decision-making pipeline utilizes a highly optimized **Fan-Out / Fan-In**
 4. **Supervisor Node:** Synthesizes the parallel data to generate the final FCA-compliant audit trail and DTI calculation.
 
 ### 💼 Enterprise Features Built-In
-During the first three days, we injected several commercial improvements to maximize our Total Addressable Market (TAM):
-* **O(1) Multi-Tenancy:** Securely support hundreds of B2B lenders on the same database.
-* **Async Webhooks:** Non-blocking callbacks allowing Enterprise clients to receive underwriting decisions without HTTP timeouts.
-* **Injectable Risk Appetites:** Lenders can inject their own custom DTI and income thresholds into the API payload.
+During the sprint, we injected several commercial improvements to maximize our Total Addressable Market (TAM):
+* **O(1) Multi-Tenancy:** Securely support hundreds of B2B lenders on the same PostgreSQL database.
+* **Async Webhooks with Exponential Backoff:** Non-blocking callbacks that automatically retry (using `tenacity`) if the client's server goes down, preventing audit-trail data loss.
+* **Prompt Injection Protection:** Strict Pydantic RegEx constraints and Payload DoW (Denial of Wallet) capping to prevent malicious actors from hacking the LLM pipeline.
+* **Injectable Risk Appetites:** Lenders can dynamically inject their own custom DTI and income thresholds into the API payload.
 * **Dual-Layer Audit Trails:** Outputs a dense compliance log for the bank's risk officers, alongside a polite, consumer-facing explanation for their UI.
 
 ## 📄 Documentation & Architecture
