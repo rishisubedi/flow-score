@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 import httpx
 import asyncio
 import logging
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 
 from app.db.database import get_db
 from app.core.security import get_client_id
@@ -13,26 +14,36 @@ from app.agents.graph import underwriting_graph
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
+# OPTIMIZATION: Added Exponential Backoff Retry logic using Tenacity.
+# If a B2B client's server is temporarily down, FlowScore will automatically retry 
+# sending the webhook payload instead of silently dropping the audit trail.
+@retry(
+    stop=stop_after_attempt(5),
+    wait=wait_exponential(multiplier=1, min=2, max=30),
+    retry=retry_if_exception_type((httpx.RequestError, httpx.TimeoutException))
+)
+async def deliver_webhook_with_retry(webhook_url: str, payload: dict):
+    async with httpx.AsyncClient() as client:
+        # Timeout configured to prevent hanging connections
+        response = await client.post(str(webhook_url), json=payload, timeout=10.0)
+        response.raise_for_status()
+        logger.info(f"Webhook successfully delivered to {webhook_url}")
+
 async def process_webhook_callback(webhook_url: str, payload: dict):
     """
-    Background task to send webhook asynchronously to the B2B client.
+    Background task entrypoint that wraps the retry logic.
     Ensures the main API thread isn't blocked by slow network requests.
     """
-    async with httpx.AsyncClient() as client:
-        try:
-            # Send the payload to the client's webhook URL
-            await client.post(str(webhook_url), json=payload, timeout=10.0)
-            logger.info(f"Webhook successfully delivered to {webhook_url}")
-        except httpx.RequestError as exc:
-            # In a production environment, log this to Sentry/Datadog
-            logger.error(f"Webhook delivery failed for {exc.request.url!r}. Reason: {exc}")
+    try:
+        await deliver_webhook_with_retry(webhook_url, payload)
+    except Exception as exc:
+        logger.error(f"Permanent webhook failure for {webhook_url} after 5 retries. Reason: {exc}")
 
 def execute_langgraph_workflow(request_data: dict) -> dict:
     """
     Executes the compiled LangGraph workflow synchronously.
-    We wrap this in a threadpool downstream to prevent blocking the async event loop.
+    Wrapped in an asyncio ThreadPool downstream.
     """
-    # Initialize the AgentState payload
     initial_state = {
         "applicant_id": request_data.get("applicant_id"),
         "transactions": request_data.get("transactions", []),
@@ -44,9 +55,7 @@ def execute_langgraph_workflow(request_data: dict) -> dict:
         "errors": []
     }
     
-    # Trigger the multi-agent AI pipeline
-    final_state = underwriting_graph.invoke(initial_state)
-    return final_state
+    return underwriting_graph.invoke(initial_state)
 
 @router.post("/", response_model=CreditDecisionOutput, status_code=status.HTTP_201_CREATED)
 async def submit_underwriting_request(
@@ -57,24 +66,20 @@ async def submit_underwriting_request(
 ):
     """
     Submit a list of Open Banking transactions for AI underwriting analysis.
-    The LangGraph network processes it, persists it to PostgreSQL, and fires an async webhook.
+    The LangGraph network processes it, persists it to PostgreSQL, and fires an async webhook with retries.
     """
     try:
-        # 1. Offload the heavy AI reasoning to an asyncio ThreadPool
-        # This guarantees high-concurrency for our FastAPI web server
+        # Offload heavy AI reasoning to an asyncio ThreadPool
         request_dict = request.model_dump()
         final_state = await asyncio.to_thread(execute_langgraph_workflow, request_dict)
         
-        # 2. Extract the structured LLM output
         decision_data = final_state.get("final_decision")
         if not decision_data:
             raise ValueError(f"LangGraph failed to produce a final decision. Errors: {final_state.get('errors')}")
 
-        # Ensure the output maps perfectly to our Pydantic schema
         final_output = CreditDecisionOutput(**decision_data)
 
-        # 3. Database Persistence (Day 8 Integration)
-        # Store the decision in PostgreSQL tied securely to the specific client_id tenant
+        # Database Persistence
         db_record = CreditDecision(
             client_id=client_id,
             applicant_id=final_output.applicant_id,
@@ -88,11 +93,11 @@ async def submit_underwriting_request(
         db.refresh(db_record)
         logger.info(f"Database persist successful. DB ID: {db_record.id}")
         
-        # 4. Dispatch the async webhook if the client provided one
+        # Dispatch the async webhook with embedded exponential backoff logic
         if request.webhook_url:
             background_tasks.add_task(
                 process_webhook_callback, 
-                webhook_url=request.webhook_url, 
+                webhook_url=str(request.webhook_url), 
                 payload=final_output.model_dump(mode='json')
             )
             
@@ -100,7 +105,6 @@ async def submit_underwriting_request(
         
     except Exception as e:
         logger.error(f"Underwriting Error: {str(e)}")
-        # Rollback the DB session in case of partial write failure
         db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
