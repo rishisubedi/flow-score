@@ -54,15 +54,21 @@ To run the FlowScore API MVP locally:
    docker-compose up --build
    ```
 
-4. **Access the API:**
-   Once running, navigate to `http://localhost:8080/docs` to interact with the auto-generated Swagger UI documentation.
+4. **Run the Live Demo (Interview Prep):**
+   Open a second terminal and run the included Python demo script. This will ping the local server with a simulated "Gig Worker" open banking payload and print out the AI's dual-layer FCA audit trail in real-time.
+   ```bash
+   python scripts/run_demo.py
+   ```
+
+5. **Access the API Documentation:**
+   Navigate to `http://localhost:8080/docs` to interact with the auto-generated Swagger UI.
 
 ---
 
 ## 📈 Current Project Status (10-Day Sprint)
 
-**Sprint Completion: 80%**
-`[████████..]`
+**Sprint Completion: 100%**
+`[██████████]`
 
 
 * **[x] Day 1:** Core Infrastructure, Dockerization, and FastAPI Setup.
@@ -74,7 +80,7 @@ To run the FlowScore API MVP locally:
 * **[x] Day 7:** Supervisor Agent & FCA Explainability Layer.
 * **[x] Day 8:** Database Integration & Final Output Formatting.
 * **[x] Day 9:** Edge Cases, Pytest, & Handling LLM Hallucinations.
-* **[ ] Day 10:** Final Polish, Demo Prep, & Cloud Run Deployment.
+* **[x] Day 10:** Final Polish, Demo Prep, & Cloud Run Deployment.
 
 ### 🧠 Multi-Agent Architecture (LangGraph)
 The AI decision-making pipeline utilizes a highly optimized **Fan-Out / Fan-In** LangGraph architecture:

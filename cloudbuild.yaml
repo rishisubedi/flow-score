@@ -1,0 +1,38 @@
+steps:
+  # 1. Run the Pytest Suite
+  - name: 'python:3.11'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        pip install -r requirements.txt
+        python -m pytest tests/
+
+  # 2. Build the Docker Image
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', 'gcr.io/$PROJECT_ID/flowscore-api:$COMMIT_SHA', '.']
+
+  # 3. Push the Docker Image to Google Container Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'gcr.io/$PROJECT_ID/flowscore-api:$COMMIT_SHA']
+
+  # 4. Deploy to Google Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'flowscore-api'
+      - '--image'
+      - 'gcr.io/$PROJECT_ID/flowscore-api:$COMMIT_SHA'
+      - '--region'
+      - 'europe-west2' # London Region for UK Data Compliance
+      - '--platform'
+      - 'managed'
+      - '--allow-unauthenticated'
+      - '--set-env-vars'
+      - 'ENVIRONMENT=production'
+      # (Note: Secrets like OPENAI_API_KEY and DATABASE_URL should be injected via Google Secret Manager)
+
+images:
+  - 'gcr.io/$PROJECT_ID/flowscore-api:$COMMIT_SHA'
