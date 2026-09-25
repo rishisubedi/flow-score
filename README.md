@@ -63,6 +63,27 @@ To run the FlowScore API MVP locally:
 5. **Access the API Documentation:**
    Navigate to `http://localhost:8080/docs` to interact with the auto-generated Swagger UI.
 
+### 🛡️ Enterprise Resilience (Zero-Crash Fallback)
+The API is built to never crash, even if the upstream OpenAI API experiences an outage or hallucinations. If you run the demo without a valid API key, you will see the **Safety Net Override** in action (built during Day 9):
+```json
+{
+    "applicant_id": "gig_worker_9942",
+    "risk_score": 0,
+    "decision": "MANUAL_REVIEW",
+    "dti_ratio": 9.99,
+    "audit_trail": {
+        "internal_compliance_log": {
+            "income_volatility_score": 1.0,
+            "expense_baseline": 0.0,
+            "affordability_logic": "System failure triggered safety override. Supervisor Agent Error: Unauthorized."
+        },
+        "customer_facing_explanation": "We are currently reviewing your application manually to ensure we provide you with the most accurate and fair assessment.",
+        "consumer_duty_statement": "In accordance with FCA guidelines, this decision has been paused for human review due to a system interruption."
+    }
+}
+```
+This guarantees strict FCA compliance by never leaving a customer hanging or generating fake automated decisions during a system outage.
+
 ---
 
 ## 📈 Current Project Status (10-Day Sprint)

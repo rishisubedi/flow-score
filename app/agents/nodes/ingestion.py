@@ -11,19 +11,21 @@ def ingestion_node(state: AgentState) -> dict:
     # In a later iteration, this could be an LLM call itself, but heuristics are faster for standard B2B payloads
     categorized = []
     for tx in transactions:
-        # Convert the Pydantic model to a dict for easier LangGraph state passing
-        tx_dict = tx.model_dump()
+        # Convert the Pydantic model to a dict if it's not already one
+        tx_dict = tx.model_dump() if hasattr(tx, 'model_dump') else tx.copy()
+        
+        category = tx_dict.get("category")
+        description = tx_dict.get("description", "").lower()
         
         # Basic categorization fallback if the B2B client didn't provide one
-        if not tx.category:
-            desc = tx.description.lower()
-            if "uber" in desc or "deliveroo" in desc or "earnings" in desc:
+        if not category:
+            if "uber" in description or "deliveroo" in description or "earnings" in description:
                 tx_dict["category"] = "INCOME_GIG"
-            elif "rent" in desc or "properties" in desc or "housing" in desc:
+            elif "rent" in description or "properties" in description or "housing" in description:
                 tx_dict["category"] = "RENT"
-            elif "gas" in desc or "water" in desc or "electric" in desc:
+            elif "gas" in description or "water" in description or "electric" in description:
                 tx_dict["category"] = "UTILITIES"
-            elif "tesco" in desc or "sainsbury" in desc or "aldi" in desc:
+            elif "tesco" in description or "sainsbury" in description or "aldi" in description:
                 tx_dict["category"] = "GROCERIES"
             else:
                 tx_dict["category"] = "OTHER"

@@ -8,7 +8,7 @@ async def run_demo():
     Simulates a B2B lender sending a thin-file gig-worker's data to the FlowScore API.
     Used for local demonstrations during interviews.
     """
-    url = "http://localhost:8080/v1/underwrite"
+    url = "http://localhost:8080/v1/underwrite/"
     
     # Generate mock dates relative to today
     today = datetime.now()
@@ -47,7 +47,7 @@ async def run_demo():
             response = await client.post(
                 url, 
                 json=payload, 
-                headers={"Authorization": "Bearer tenantA:secret123"},
+                headers={"X-API-Key": "tenantA:secret123"},
                 timeout=30.0
             )
             

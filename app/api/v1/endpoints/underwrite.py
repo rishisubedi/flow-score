@@ -86,7 +86,7 @@ async def submit_underwriting_request(
             risk_score=final_output.risk_score,
             decision=final_output.decision,
             dti_ratio=final_output.dti_ratio,
-            audit_trail=final_output.audit_trail.model_dump(mode='json')
+            audit_trail=final_output.model_dump(mode='json').get('audit_trail')
         )
         db.add(db_record)
         db.commit()
@@ -104,7 +104,9 @@ async def submit_underwriting_request(
         return final_output
         
     except Exception as e:
+        import traceback
         logger.error(f"Underwriting Error: {str(e)}")
+        logger.error(traceback.format_exc())
         db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

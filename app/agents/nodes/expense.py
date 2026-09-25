@@ -50,7 +50,7 @@ def expense_analyst_node(state: AgentState) -> dict:
     try:
         # Execute the LLM call
         result: ExpenseMetrics = chain.invoke({"transactions": expense_txs})
-        return {"expense_metrics": result.model_dump()}
+        return {"expense_metrics": result.model_dump() if hasattr(result, 'model_dump') else result}
     except Exception as e:
         # Fallback in case of API failure to prevent the graph from crashing
         # We assume all expenses are essential as a conservative fallback for risk calculations

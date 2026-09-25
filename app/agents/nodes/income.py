@@ -47,7 +47,7 @@ def income_analyst_node(state: AgentState) -> dict:
     try:
         # Execute the LLM call synchronously (LangGraph manages the parallel async execution under the hood)
         result: IncomeMetrics = chain.invoke({"transactions": income_txs})
-        return {"income_metrics": result.model_dump()}
+        return {"income_metrics": result.model_dump() if hasattr(result, 'model_dump') else result}
     except Exception as e:
         # Fallback in case of API timeout/failure to prevent the entire LangGraph from crashing
         return {

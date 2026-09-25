@@ -1,6 +1,11 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
+from app.db.database import engine, Base
+import app.db.models  # Crucial: Import models so Base metadata is populated
+
+# Auto-create tables for local MVP runs (production uses Alembic)
+Base.metadata.create_all(bind=engine)
 
 # Initialize FastAPI application
 app = FastAPI(

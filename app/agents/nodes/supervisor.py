@@ -69,7 +69,7 @@ def supervisor_node(state: AgentState) -> dict:
         
         # We store the final object back in the state as a dict/Pydantic depending on downstream needs.
         # Returning it as a dict using model_dump() aligns with standard LangGraph practice.
-        return {"final_decision": result.model_dump()}
+        return {"final_decision": result.model_dump() if hasattr(result, 'model_dump') else result}
     
     except Exception as e:
         return _fallback_rejection(applicant_id, f"Supervisor Agent Error: {str(e)}")
