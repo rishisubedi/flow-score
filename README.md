@@ -110,6 +110,26 @@ The AI decision-making pipeline utilizes a highly optimized **Fan-Out / Fan-In**
 3. **Synchronized Fan-In:** The custom `merge_lists` reducer guarantees that parallel outputs and errors don't overwrite each other in the `AgentState` TypedDict.
 4. **Supervisor Node:** Synthesizes the parallel data to generate the final FCA-compliant audit trail and DTI calculation.
 
+```mermaid
+graph TD
+    Client[B2B Lender / FinTech] -->|POST /v1/underwrite| API[FastAPI Web Server]
+    API -->|Async Threadpool| Orchestrator[LangGraph Orchestrator]
+
+    subgraph LangGraph [Multi-Agent Consensus (LangGraph)]
+        direction TB
+        Ingest[Ingestion Node] --> |Fan-Out| Income[Income Analyst Agent]
+        Ingest --> |Fan-Out| Expense[Expense Tracker Agent]
+        Income --> |Fan-In| Supervisor[Supervisor Agent]
+        Expense --> |Fan-In| Supervisor
+    end
+
+    Orchestrator --> LangGraph
+    Supervisor --> |FCA Audit Trail| Orchestrator
+
+    API -->|Save Decision| DB[(PostgreSQL Database)]
+    API -.->|Async Webhook| Callback[Client Webhook URL]
+```
+
 ### 💼 Enterprise Features Built-In
 During the sprint, we injected several commercial improvements to maximize our Total Addressable Market (TAM):
 * **O(1) Multi-Tenancy:** Securely support hundreds of B2B lenders on the same PostgreSQL database.
