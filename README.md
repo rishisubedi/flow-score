@@ -121,22 +121,22 @@ The AI decision-making pipeline utilizes a highly optimized **Fan-Out / Fan-In**
 
 ```mermaid
 graph TD
-    Client[B2B Lender / FinTech] -->|POST /v1/underwrite| API[FastAPI Web Server]
-    API -->|Async Threadpool| Orchestrator[LangGraph Orchestrator]
+    Client["B2B Lender / FinTech"] -->|"POST /v1/underwrite"| API["FastAPI Web Server"]
+    API -->|"Async Threadpool"| Orchestrator["LangGraph Orchestrator"]
 
-    subgraph LangGraph [Multi-Agent Consensus (LangGraph)]
+    subgraph "Multi-Agent Consensus (LangGraph)"
         direction TB
-        Ingest[Ingestion Node] --> |Fan-Out| Income[Income Analyst Agent]
-        Ingest --> |Fan-Out| Expense[Expense Tracker Agent]
-        Income --> |Fan-In| Supervisor[Supervisor Agent]
-        Expense --> |Fan-In| Supervisor
+        Ingest["Ingestion Node"] -->|"Fan-Out"| Income["Income Analyst Agent"]
+        Ingest -->|"Fan-Out"| Expense["Expense Tracker Agent"]
+        Income -->|"Fan-In"| Supervisor["Supervisor Agent"]
+        Expense -->|"Fan-In"| Supervisor
     end
 
-    Orchestrator --> LangGraph
-    Supervisor --> |FCA Audit Trail| Orchestrator
-
-    API -->|Save Decision| DB[(PostgreSQL Database)]
-    API -.->|Async Webhook| Callback[Client Webhook URL]
+    Orchestrator --> Ingest
+    Supervisor -->|"FCA Audit Trail"| Orchestrator
+    
+    API -->|"Save Decision"| DB[("PostgreSQL Database")]
+    API -.->|"Async Webhook"| Callback["Client Webhook URL"]
 ```
 
 ### 💼 Enterprise SaaS Features Built-In
