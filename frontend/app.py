@@ -1,6 +1,8 @@
 import streamlit as st
 import requests
 import json
+import time
+import uuid
 
 API_URL = "http://localhost:8080/v1/underwrite/"
 ADMIN_URL = "http://localhost:8080/v1/admin/client/"
@@ -47,7 +49,6 @@ with tab2:
                 payload["byok_provider"] = byok_provider
                 payload["byok_api_key"] = byok_key
                 
-            # Attempt to create first
             resp = requests.post(ADMIN_URL, json=payload)
             if resp.status_code == 400: # Already exists, update it
                 resp = requests.put(f"{ADMIN_URL}{client_id}", json=payload)
@@ -130,29 +131,65 @@ with tab1:
         if st.button("🚀 Run AI Underwriting (Consumes 1 Credit)", type="primary", use_container_width=True):
             try:
                 payload = json.loads(payload_str)
-                with st.spinner("LangGraph is routing payload & processing billing..."):
-                    headers = {"X-API-Key": st.session_state.x_api_key}
-                    response = requests.post(API_URL, json=payload, headers=headers)
+                # Generate unique idempotency key for this button click
+                idempotency_key = str(uuid.uuid4())
+                headers = {
+                    "X-API-Key": st.session_state.x_api_key,
+                    "Idempotency-Key": idempotency_key
+                }
+                
+                status_placeholder = st.empty()
+                status_placeholder.info("Dispatching task to Celery Message Broker...")
+                
+                response = requests.post(API_URL, json=payload, headers=headers)
                     
-                if response.status_code in [200, 201]:
-                    data = response.json()
-                    m1, m2, m3 = st.columns(3)
-                    decision = data.get("decision", "UNKNOWN")
-                    m1.metric("Decision", decision)
-                    m2.metric("Risk Score", data.get("risk_score", 0))
-                    m3.metric("DTI Ratio", f"{data.get('dti_ratio', 0.0):.2f}")
+                if response.status_code == 202:
+                    job_data = response.json()
+                    job_id = job_data["job_id"]
+                    status_placeholder.success(f"Job Accepted by Broker! Job ID: {job_id}")
                     
-                    st.markdown("---")
-                    st.subheader("⚖️ FCA Audit Trail")
-                    audit = data.get("audit_trail", {})
-                    st.success("**💬 Customer-Facing Explanation**\n\n" + audit.get("customer_facing_explanation", ""))
-                    st.info("**📜 Consumer Duty Statement**\n\n" + audit.get("consumer_duty_statement", ""))
-                    
-                    with st.expander("🔍 View Internal Compliance Log (For Risk Officers)", expanded=True):
-                        internal = audit.get("internal_compliance_log", {})
-                        st.write(f"**Income Volatility Score:** `{internal.get('income_volatility_score')}`")
-                        st.write(f"**Expense Baseline:** `£{internal.get('expense_baseline')}`")
-                        st.write(f"> {internal.get('affordability_logic')}")
+                    # Polling Loop
+                    with st.status("AI Agents Analyzing Data...", expanded=True) as status_box:
+                        st.write("Income Analyst evaluating volatility...")
+                        st.write("Expense Tracker calculating baseline...")
+                        
+                        max_retries = 30
+                        for i in range(max_retries):
+                            time.sleep(2) # Poll every 2 seconds
+                            status_resp = requests.get(f"{API_URL}status/{job_id}", headers=headers)
+                            if status_resp.status_code == 200:
+                                status_data = status_resp.json()
+                                if status_data["status"] == "COMPLETED":
+                                    status_box.update(label="Analysis Complete!", state="complete", expanded=False)
+                                    break
+                                elif status_data["status"] == "FAILED":
+                                    status_box.update(label="Analysis Failed!", state="error", expanded=True)
+                                    st.error(status_data.get("error", "Unknown error in LangGraph"))
+                                    st.stop()
+                                else:
+                                    st.write(f"Polling Celery Worker... (Attempt {i+1}/{max_retries})")
+                            else:
+                                st.write("Waiting for FastAPI...")
+                                
+                    if status_data["status"] == "COMPLETED":
+                        data = status_data["result"]
+                        m1, m2, m3 = st.columns(3)
+                        decision = data.get("decision", "UNKNOWN")
+                        m1.metric("Decision", decision)
+                        m2.metric("Risk Score", data.get("risk_score", 0))
+                        m3.metric("DTI Ratio", f"{data.get('dti_ratio', 0.0):.2f}")
+                        
+                        st.markdown("---")
+                        st.subheader("⚖️ FCA Audit Trail")
+                        audit = data.get("audit_trail", {})
+                        st.success("**💬 Customer-Facing Explanation**\n\n" + audit.get("customer_facing_explanation", ""))
+                        st.info("**📜 Consumer Duty Statement**\n\n" + audit.get("consumer_duty_statement", ""))
+                        
+                        with st.expander("🔍 View Internal Compliance Log (For Risk Officers)", expanded=True):
+                            internal = audit.get("internal_compliance_log", {})
+                            st.write(f"**Income Volatility Score:** `{internal.get('income_volatility_score')}`")
+                            st.write(f"**Expense Baseline:** `£{internal.get('expense_baseline')}`")
+                            st.write(f"> {internal.get('affordability_logic')}")
                         
                 elif response.status_code == 402:
                     st.error("💳 402 Payment Required: You have run out of API credits!")
@@ -166,4 +203,4 @@ with tab1:
             except json.JSONDecodeError:
                 st.error("Invalid JSON format.")
             except requests.exceptions.ConnectionError:
-                st.error("Could not connect to FastAPI.")
+                st.error("Could not connect to FastAPI. Is it running?")

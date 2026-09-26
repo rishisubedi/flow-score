@@ -8,10 +8,12 @@ services:
     environment:
       - DATABASE_URL=postgresql://postgres:postgres@db:5432/flowscore
       - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - REDIS_URL=redis://redis:6379/0
     volumes:
       - .:/app
     depends_on:
       - db
+      - redis
     command: uvicorn app.main:app --host 0.0.0.0 --port 8080 --reload
 
   db:
@@ -24,6 +26,24 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+  worker:
+    build: .
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/flowscore
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - REDIS_URL=redis://redis:6379/0
+    volumes:
+      - .:/app
+    depends_on:
+      - db
+      - redis
+    command: celery -A app.worker.celery_app worker --loglevel=info
 
 volumes:
   postgres_data:

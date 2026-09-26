@@ -1,60 +1,38 @@
-from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, status, Header
 from sqlalchemy.orm import Session
-import httpx
-import asyncio
 import logging
-from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
+import redis
+from typing import Optional
 
 from app.db.database import get_db
 from app.core.billing import check_and_deduct_credits
 from app.db.models import Client, CreditDecision
-from app.models.schemas import UnderwritingRequest, CreditDecisionOutput
-from app.agents.graph import underwriting_graph
+from app.models.schemas import UnderwritingRequest
+from app.core.crypto import decrypt_api_key
+from app.core.config import settings
+from app.worker import process_underwriting_task, celery_app
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
-@retry(
-    stop=stop_after_attempt(5),
-    wait=wait_exponential(multiplier=1, min=2, max=30),
-    retry=retry_if_exception_type((httpx.RequestError, httpx.TimeoutException))
-)
-async def deliver_webhook_with_retry(webhook_url: str, payload: dict):
-    async with httpx.AsyncClient() as client:
-        response = await client.post(str(webhook_url), json=payload, timeout=10.0)
-        response.raise_for_status()
-        logger.info(f"Webhook successfully delivered to {webhook_url}")
+# Initialize Redis client for Idempotency
+redis_client = redis.Redis.from_url(settings.REDIS_URL, decode_responses=True)
 
-async def process_webhook_callback(webhook_url: str, payload: dict):
-    try:
-        await deliver_webhook_with_retry(webhook_url, payload)
-    except Exception as exc:
-        logger.error(f"Permanent webhook failure for {webhook_url} after 5 retries. Reason: {exc}")
-
-def execute_langgraph_workflow(request_data: dict) -> dict:
-    initial_state = {
-        "applicant_id": request_data.get("applicant_id"),
-        "transactions": request_data.get("transactions", []),
-        "policy": request_data.get("policy", {}),
-        "categorized_transactions": [],
-        "income_metrics": {},
-        "expense_metrics": {},
-        "final_decision": None,
-        "errors": [],
-        "llm_config": request_data.get("llm_config", {})
-    }
-    return underwriting_graph.invoke(initial_state)
-
-from app.core.crypto import decrypt_api_key
-
-@router.post("/", response_model=CreditDecisionOutput, status_code=status.HTTP_201_CREATED)
+@router.post("/", status_code=status.HTTP_202_ACCEPTED)
 async def submit_underwriting_request(
     request: UnderwritingRequest,
-    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
-    client: Client = Depends(check_and_deduct_credits)
+    client: Client = Depends(check_and_deduct_credits),
+    idempotency_key: Optional[str] = Header(None, alias="Idempotency-Key")
 ):
     try:
+        # Idempotency Check
+        if idempotency_key:
+            cache_key = f"idemp:{client.client_id}:{idempotency_key}"
+            existing_job_id = redis_client.get(cache_key)
+            if existing_job_id:
+                return {"status": "accepted", "job_id": existing_job_id, "message": "Duplicate request identified. Returning existing job ID."}
+        
         request_dict = request.model_dump()
         
         # Inject Multi-Tenant BYOK Configuration
@@ -65,50 +43,39 @@ async def submit_underwriting_request(
             }
         else:
             # Fallback to the platform's Master API Key
-            from app.core.config import settings
             request_dict["llm_config"] = {
                 "provider": "gemini",
                 "api_key": settings.OPENAI_API_KEY
             }
 
-        # Offload heavy AI reasoning to an asyncio ThreadPool
-        final_state = await asyncio.to_thread(execute_langgraph_workflow, request_dict)
-        
-        decision_data = final_state.get("final_decision")
-        if not decision_data:
-            raise ValueError(f"LangGraph failed to produce a final decision. Errors: {final_state.get('errors')}")
-
-        final_output = CreditDecisionOutput(**decision_data)
-
-        # Database Persistence
-        db_record = CreditDecision(
-            client_id=client.client_id,
-            applicant_id=final_output.applicant_id,
-            risk_score=final_output.risk_score,
-            decision=final_output.decision,
-            dti_ratio=final_output.dti_ratio,
-            audit_trail=final_output.model_dump(mode='json').get('audit_trail')
+        # Dispatch the task to Celery
+        task = process_underwriting_task.delay(
+            request_dict, 
+            client.client_id, 
+            str(request.webhook_url) if request.webhook_url else None
         )
-        db.add(db_record)
-        db.commit()
-        db.refresh(db_record)
         
-        # Dispatch the async webhook
-        if request.webhook_url:
-            background_tasks.add_task(
-                process_webhook_callback, 
-                webhook_url=str(request.webhook_url), 
-                payload=final_output.model_dump(mode='json')
-            )
+        # Save Idempotency Key
+        if idempotency_key:
+            # Expire idempotency key after 24 hours
+            redis_client.setex(cache_key, 86400, task.id)
             
-        return final_output
+        return {"status": "accepted", "job_id": task.id}
         
     except Exception as e:
-        import traceback
-        logger.error(f"Underwriting Error: {str(e)}")
-        logger.error(traceback.format_exc())
-        db.rollback()
+        logger.error(f"Error dispatching task: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"An error occurred during AI processing: {str(e)}"
+            detail=f"Failed to queue AI processing: {str(e)}"
         )
+
+@router.get("/status/{job_id}")
+async def get_job_status(job_id: str):
+    task_result = celery_app.AsyncResult(job_id)
+    
+    if task_result.state == 'PENDING':
+        return {"job_id": job_id, "status": "PENDING"}
+    elif task_result.state != 'FAILURE':
+        return {"job_id": job_id, "status": "COMPLETED", "result": task_result.result}
+    else:
+        return {"job_id": job_id, "status": "FAILED", "error": str(task_result.info)}
