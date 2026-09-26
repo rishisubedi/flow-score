@@ -1,26 +1,24 @@
-from fastapi import Security, HTTPException, status
+from fastapi import Security, HTTPException, status, Depends
 from fastapi.security import APIKeyHeader
-import secrets
-from app.core.config import settings
+from sqlalchemy.orm import Session
+from app.db.database import get_db
+from app.db.models import Client
 
 api_key_header = APIKeyHeader(name="X-API-Key", auto_error=True)
 
-def get_client_id(api_key: str = Security(api_key_header)) -> str:
+def get_current_client(
+    api_key: str = Security(api_key_header),
+    db: Session = Depends(get_db)
+) -> Client:
     """
-    Validates the API key and returns the associated client_id (tenant).
-    Optimized for MVP: Expects format 'client_id:secret_key' or uses default.
+    Validates the API key against the database and returns the Client object.
     """
-    # Allow client-specific keys formatted as "client_id:secret_token"
-    if ":" in api_key:
-        client_id, secret = api_key.split(":", 1)
-        # TODO: In production, verify the secret hash against the DB/Redis here
-        return client_id
+    client = db.query(Client).filter(Client.api_key_hash == api_key).first()
     
-    # Fallback for the master API Key
-    if secrets.compare_digest(api_key, settings.API_KEY):
-        return "default_tenant"
+    if not client:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or missing API Key",
+        )
         
-    raise HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Invalid API Key",
-    )
+    return client

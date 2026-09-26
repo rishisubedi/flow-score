@@ -27,3 +27,6 @@ class AgentState(TypedDict):
     
     # We use Annotated and a reducer (merge_lists) so parallel nodes can append errors safely without overwriting each other
     errors: Annotated[List[str], merge_lists]
+    
+    # BYOK / LLM Credentials injected by the Fastapi route
+    llm_config: Dict[str, str]

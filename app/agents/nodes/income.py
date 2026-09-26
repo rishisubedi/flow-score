@@ -1,8 +1,7 @@
-from langchain_openai import ChatOpenAI
+from app.core.llm import get_llm
 from langchain_core.prompts import ChatPromptTemplate
 from pydantic import BaseModel, Field
 from app.agents.state import AgentState
-from app.core.config import settings
 
 class IncomeMetrics(BaseModel):
     """Strict schema for the Income Analyst LLM to adhere to."""
@@ -13,7 +12,6 @@ class IncomeMetrics(BaseModel):
 def income_analyst_node(state: AgentState) -> dict:
     """
     Analyzes 'INCOME' transactions to determine gig-economy wage stability.
-    Uses GPT-4o-mini with structured outputs to guarantee deterministic JSON formatting.
     """
     transactions = state.get("categorized_transactions", [])
     
@@ -30,9 +28,8 @@ def income_analyst_node(state: AgentState) -> dict:
             }
         }
 
-    # Initialize the LLM (Requires OPENAI_API_KEY in environment)
-    # We use gpt-4o-mini for speed and cost-efficiency in high-volume underwriting
-    llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.0, api_key=settings.OPENAI_API_KEY)
+    # Initialize the LLM dynamically using the tenant's BYOK credentials
+    llm = get_llm(state.get("llm_config", {}))
     
     # Enforce strict structured output (Function Calling)
     structured_llm = llm.with_structured_output(IncomeMetrics)

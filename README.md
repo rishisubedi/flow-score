@@ -1,10 +1,10 @@
-# FlowScore API 🌊💳
+# FlowScore SaaS 🚀
 
-**An AI-Powered, Open Banking Credit Underwriting Engine for "Thin-File" Customers.**
+**An AI-Powered, Multi-Tenant SaaS Engine for Open Banking Credit Underwriting.**
 
-FlowScore API is a B2B SaaS Risk Engine that leverages Multi-Agent AI to analyze Open Banking transaction data, providing fair, dynamic, and strictly explainable credit risk scores.
+FlowScore is a B2B SaaS Risk Engine that leverages Multi-Agent AI to analyze Open Banking transaction data, providing fair, dynamic, and strictly explainable credit risk scores for "Thin-File" customers.
 
-## 🇬🇧 Our Mission: Democratizing Credit in the UK
+## 🌍 Our Mission: Democratizing Credit in the UK
 
 In the UK, millions of people are locked out of the financial system or forced to rely on predatory, high-interest payday loans because they are deemed "thin-file" by traditional credit bureaus (Experian, Equifax, TransUnion). 
 
@@ -24,17 +24,18 @@ In the UK financial sector, transparency is legally mandated. FlowScore is built
 
 ---
 
-## 🛠 Core Tech Stack
+## 🛠️ Core Tech Stack
 * **Backend:** Python 3.11+, FastAPI
 * **AI Orchestration:** LangGraph (Multi-Agent State Management)
-* **LLMs:** OpenAI GPT-4o / Claude 3.5 Sonnet
+* **LLMs:** Google Gemini 3.8 Flash / OpenAI GPT-4o
 * **Data Validation:** Pydantic (Strict Output Parsing)
 * **Database:** PostgreSQL (SQLAlchemy & Alembic)
-* **Infrastructure:** Docker & docker-compose (Optimized for GCP Cloud Run)
+* **Frontend:** Streamlit (Admin & Underwriting Dashboard)
+* **Monetization:** Custom Billing Middleware & BYOK Integration
 
 ## 🚀 Getting Started
 
-To run the FlowScore API MVP locally:
+To run the FlowScore SaaS MVP locally:
 
 1. **Clone the repository:**
    ```bash
@@ -43,7 +44,7 @@ To run the FlowScore API MVP locally:
    ```
 
 2. **Configure the Environment:**
-   Copy the example environment file and insert your API keys (e.g., OpenAI).
+   Copy the example environment file and insert your platform API keys.
    ```bash
    cp .env.example .env
    ```
@@ -66,13 +67,13 @@ To run the FlowScore API MVP locally:
    pip install streamlit requests
    streamlit run frontend/app.py
    ```
-   Navigate to `http://localhost:8501` in your browser to test different edge cases, configure risk thresholds, and view the FCA audit trails!
+   Navigate to `http://localhost:8501` in your browser. You can create a tenant account, purchase API credits, configure BYOK keys, and test edge cases.
 
 6. **Access the API Documentation:**
    Navigate to `http://localhost:8080/docs` to interact with the auto-generated Swagger UI.
 
 ### 🛡️ Enterprise Resilience (Zero-Crash Fallback)
-The API is built to never crash, even if the upstream OpenAI API experiences an outage or hallucinations. If you run the demo without a valid API key, you will see the **Safety Net Override** in action (built during Day 9):
+The API is built to never crash, even if the upstream LLM API experiences an outage or hallucinations. If you run the demo without a valid API key, you will see the **Safety Net Override** in action (built during Day 9):
 ```json
 {
     "applicant_id": "gig_worker_9942",
@@ -94,10 +95,10 @@ This guarantees strict FCA compliance by never leaving a customer hanging or gen
 
 ---
 
-## 📈 Current Project Status (10-Day Sprint)
+## 📅 Current Project Status (10-Day Sprint)
 
 **Sprint Completion: 100%**
-`[██████████]`
+`[█▀█▀█▀█▀█▀█▀█▀█▀█▀█]`
 
 
 * **[x] Day 1:** Core Infrastructure, Dockerization, and FastAPI Setup.
@@ -109,7 +110,7 @@ This guarantees strict FCA compliance by never leaving a customer hanging or gen
 * **[x] Day 7:** Supervisor Agent & FCA Explainability Layer.
 * **[x] Day 8:** Database Integration & Final Output Formatting.
 * **[x] Day 9:** Edge Cases, Pytest, & Handling LLM Hallucinations.
-* **[x] Day 10:** Final Polish, Demo Prep, & Cloud Run Deployment.
+* **[x] Day 10:** Final Polish, UI Dashboard, Cloud Run Deployment, & SaaS Billing.
 
 ### 🧠 Multi-Agent Architecture (LangGraph)
 The AI decision-making pipeline utilizes a highly optimized **Fan-Out / Fan-In** LangGraph architecture:
@@ -138,13 +139,15 @@ graph TD
     API -.->|Async Webhook| Callback[Client Webhook URL]
 ```
 
-### 💼 Enterprise Features Built-In
+### 💼 Enterprise SaaS Features Built-In
 During the sprint, we injected several commercial improvements to maximize our Total Addressable Market (TAM):
-* **O(1) Multi-Tenancy:** Securely support hundreds of B2B lenders on the same PostgreSQL database.
+* **SaaS Billing & Metering:** Fully functional credit deduction system. Tenants hit a `402 Payment Required` wall when API credits run out.
+* **Bring Your Own Key (BYOK):** Enterprise tenants can inject their own Google Gemini or OpenAI API keys directly into the LangGraph state, dynamically re-routing LLM traffic to their own accounts to bypass rate limits.
+* **O(1) Multi-Tenancy:** Securely support hundreds of B2B lenders on the same PostgreSQL database using `client_id` partitioning.
 * **Async Webhooks with Exponential Backoff:** Non-blocking callbacks that automatically retry (using `tenacity`) if the client's server goes down, preventing audit-trail data loss.
 * **Prompt Injection Protection:** Strict Pydantic RegEx constraints and Payload DoW (Denial of Wallet) capping to prevent malicious actors from hacking the LLM pipeline.
 * **Injectable Risk Appetites:** Lenders can dynamically inject their own custom DTI and income thresholds into the API payload.
 * **Dual-Layer Audit Trails:** Outputs a dense compliance log for the bank's risk officers, alongside a polite, consumer-facing explanation for their UI.
 
-## 📄 Documentation & Architecture
+## 📖 Documentation & Architecture
 For a deep dive into the Multi-Agent consensus network and the database schema, please read the [Technical Specification Document (TSD)](TECHNICAL_SPECIFICATION.md).

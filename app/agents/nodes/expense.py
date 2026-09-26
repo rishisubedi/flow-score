@@ -1,48 +1,41 @@
-from langchain_openai import ChatOpenAI
+from app.core.llm import get_llm
 from langchain_core.prompts import ChatPromptTemplate
 from pydantic import BaseModel, Field
 from app.agents.state import AgentState
-from app.core.config import settings
 
 class ExpenseMetrics(BaseModel):
-    """Strict schema for the Expense Tracker LLM to adhere to."""
-    essential_living_costs: float = Field(description="Sum of all essential baseline expenses (rent, utilities, groceries, etc.) in GBP.")
-    discretionary_spend: float = Field(description="Sum of all non-essential lifestyle expenses (dining out, entertainment, etc.) in GBP.")
-    affordability_narrative: str = Field(description="A professional, FCA-compliant explanation of the applicant's spending behavior and ability to absorb a new credit repayment.")
+    """Strict schema for the Expense Tracker LLM."""
+    essential_expenses: float = Field(description="Total of all essential expenses (rent, utilities, groceries).")
+    discretionary_expenses: float = Field(description="Total of all discretionary/non-essential expenses.")
+    expense_baseline_narrative: str = Field(description="A brief narrative explaining the user's spending habits.")
 
 def expense_analyst_node(state: AgentState) -> dict:
     """
-    Analyzes 'EXPENSE' transactions to determine baseline living costs vs discretionary spending.
-    Uses GPT-4o-mini to programmatically separate fixed affordability constraints from lifestyle choices.
+    Analyzes 'EXPENSE' transactions to isolate strict baseline living costs from discretionary spend.
     """
     transactions = state.get("categorized_transactions", [])
     
-    # Filter for expenses only (outgoing funds)
-    # We assume expenses are either strictly negative amounts or tagged appropriately.
-    expense_txs = [tx for tx in transactions if tx.get("amount", 0) < 0 or tx.get("category", "").upper() in ["EXPENSE", "ESSENTIAL", "DISCRETIONARY"]]
+    # Filter for expenses
+    expense_txs = [tx for tx in transactions if tx.get("amount", 0) < 0 or tx.get("category") not in ["INCOME_GIG", "OTHER"]]
     
-    # Edge Case: No expenses found
     if not expense_txs:
         return {
             "expense_metrics": {
-                "essential_living_costs": 0.0,
-                "discretionary_spend": 0.0,
-                "affordability_narrative": "ANOMALY: No outgoing transactions detected. Potential account dormancy or data extraction failure.",
+                "essential_expenses": 0.0,
+                "discretionary_expenses": 0.0,
+                "expense_baseline_narrative": "No expenses recorded in this period.",
             }
         }
 
-    # Initialize the LLM (Requires OPENAI_API_KEY in environment)
-    llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.0, api_key=settings.OPENAI_API_KEY)
+    # Initialize the LLM dynamically using the tenant's BYOK credentials
+    llm = get_llm(state.get("llm_config", {}))
     
     # Enforce strict structured output (Function Calling)
     structured_llm = llm.with_structured_output(ExpenseMetrics)
     
     prompt = ChatPromptTemplate.from_messages([
-        ("system", """You are an expert Credit Risk Expense Analyst for a UK Bank. 
-        Your objective is to evaluate a thin-file customer's spending history strictly adhering to FCA Consumer Duty standards.
-        You must segregate 'essential living costs' (rent, energy, council tax, groceries) from 'discretionary spend' (pubs, betting, subscriptions).
-        This segregation determines their true disposable income and affordability. Provide a professional narrative for the audit trail."""),
-        ("human", "Here are the expense transactions: {transactions}\n\nAnalyze these and output the strictly required metrics. Please return absolute positive values for the totals (e.g., 500.0 instead of -500.0).")
+        ("system", "You are an expert Credit Risk Expense Analyst for a UK Bank. Your job is to strictly isolate essential living costs from discretionary spending. Evaluate the baseline and provide a professional narrative for the compliance audit trail."),
+        ("human", "Here are the expense transactions: {transactions}\n\nAnalyze these and output the strictly required metrics.")
     ])
     
     chain = prompt | structured_llm
@@ -54,12 +47,11 @@ def expense_analyst_node(state: AgentState) -> dict:
     except Exception as e:
         # Fallback in case of API failure to prevent the graph from crashing
         # We assume all expenses are essential as a conservative fallback for risk calculations
-        total_outgoing = sum(abs(tx.get("amount", 0)) for tx in expense_txs)
         return {
             "errors": [f"Expense Tracker LLM failed: {str(e)}"],
             "expense_metrics": {
-                "essential_living_costs": total_outgoing,
-                "discretionary_spend": 0.0,
-                "affordability_narrative": "Automated LLM analysis failed. All outgoing transactions defaulted to essential living costs for conservative affordability calculation."
+                "essential_expenses": sum(abs(tx.get("amount", 0)) for tx in expense_txs),
+                "discretionary_expenses": 0.0,
+                "expense_baseline_narrative": "Automated LLM analysis failed. Defaulting all expenses to essential baseline."
             }
         }

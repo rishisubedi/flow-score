@@ -1,8 +1,7 @@
-from langchain_openai import ChatOpenAI
+from app.core.llm import get_llm
 from langchain_core.prompts import ChatPromptTemplate
 from app.agents.state import AgentState
 from app.models.schemas import CreditDecisionOutput, FCAAuditTrail, InternalComplianceLog
-from app.core.config import settings
 
 def supervisor_node(state: AgentState) -> dict:
     """
@@ -21,7 +20,7 @@ def supervisor_node(state: AgentState) -> dict:
         return _fallback_rejection(applicant_id, "Multiple upstream agents failed. Safely defaulting to MANUAL_REVIEW.")
 
     # Initialize the Orchestrator LLM
-    llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.0, api_key=settings.OPENAI_API_KEY)
+    llm = get_llm(state.get("llm_config", {}))
     structured_llm = llm.with_structured_output(CreditDecisionOutput)
     
     prompt = ChatPromptTemplate.from_messages([
@@ -60,9 +59,9 @@ def supervisor_node(state: AgentState) -> dict:
         # Pass the extracted context safely to the prompt
         result: CreditDecisionOutput = chain.invoke({
             "applicant_id": applicant_id,
-            "max_dti": policy.max_dti_allowed if policy else 0.45,
-            "min_income": policy.min_monthly_income if policy else 1000.0,
-            "strict_fca": policy.strict_fca_mode if policy else True,
+            "max_dti": policy.get("max_dti_allowed", 0.45) if policy else 0.45,
+            "min_income": policy.get("min_monthly_income", 1000.0) if policy else 1000.0,
+            "strict_fca": policy.get("strict_fca_mode", True) if policy else True,
             "income": income,
             "expense": expense
         })

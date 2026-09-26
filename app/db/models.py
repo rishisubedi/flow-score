@@ -19,3 +19,19 @@ class CreditDecision(Base):
     
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+class Client(Base):
+    __tablename__ = "clients"
+
+    id = Column(Integer, primary_key=True, index=True)
+    client_id = Column(String, unique=True, index=True, nullable=False)
+    api_key_hash = Column(String, unique=True, index=True, nullable=False)
+    
+    subscription_tier = Column(String, default="PAYG", nullable=False) # PAYG, PRO, ENTERPRISE_BYOK
+    credits_remaining = Column(Integer, default=10, nullable=False)
+    
+    byok_provider = Column(String, nullable=True) # "openai" or "gemini"
+    byok_api_key = Column(String, nullable=True)
+    
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
