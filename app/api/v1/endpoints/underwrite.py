@@ -45,6 +45,8 @@ def execute_langgraph_workflow(request_data: dict) -> dict:
     }
     return underwriting_graph.invoke(initial_state)
 
+from app.core.crypto import decrypt_api_key
+
 @router.post("/", response_model=CreditDecisionOutput, status_code=status.HTTP_201_CREATED)
 async def submit_underwriting_request(
     request: UnderwritingRequest,
@@ -59,7 +61,7 @@ async def submit_underwriting_request(
         if client.subscription_tier == "ENTERPRISE_BYOK" and client.byok_api_key:
             request_dict["llm_config"] = {
                 "provider": client.byok_provider,
-                "api_key": client.byok_api_key
+                "api_key": decrypt_api_key(client.byok_api_key)
             }
         else:
             # Fallback to the platform's Master API Key

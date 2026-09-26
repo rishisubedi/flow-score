@@ -29,5 +29,5 @@ USER api-user
 # Expose the port Cloud Run expects (usually 8080)
 EXPOSE 8080
 
-# Command to run the application using Uvicorn
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080"]
+# Command to run the application using Gunicorn with Uvicorn workers for production
+CMD ["gunicorn", "app.main:app", "--workers", "4", "--worker-class", "uvicorn.workers.UvicornWorker", "--bind", "0.0.0.0:8080"]
