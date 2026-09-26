@@ -54,13 +54,21 @@ To run the FlowScore API MVP locally:
    docker-compose up --build
    ```
 
-4. **Run the Live Demo (Interview Prep):**
-   Open a second terminal and run the included Python demo script. This will ping the local server with a simulated "Gig Worker" open banking payload and print out the AI's dual-layer FCA audit trail in real-time.
+4. **Run the Live Console Demo (Optional):**
+   Open a second terminal and run the included Python demo script to see the backend response in your CLI.
    ```bash
    python scripts/run_demo.py
    ```
 
-5. **Access the API Documentation:**
+5. **Launch the UI Dashboard (Recommended):**
+   We have built a Streamlit application to visually interact with the AI Engine.
+   ```bash
+   pip install streamlit requests
+   streamlit run frontend/app.py
+   ```
+   Navigate to `http://localhost:8501` in your browser to test different edge cases, configure risk thresholds, and view the FCA audit trails!
+
+6. **Access the API Documentation:**
    Navigate to `http://localhost:8080/docs` to interact with the auto-generated Swagger UI.
 
 ### 🛡️ Enterprise Resilience (Zero-Crash Fallback)
