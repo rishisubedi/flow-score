@@ -79,3 +79,27 @@ async def get_job_status(job_id: str):
         return {"job_id": job_id, "status": "COMPLETED", "result": task_result.result}
     else:
         return {"job_id": job_id, "status": "FAILED", "error": str(task_result.info)}
+
+from app.core.security import get_current_client
+
+@router.get("/history")
+async def get_underwriting_history(
+    db: Session = Depends(get_db),
+    client: Client = Depends(get_current_client)
+):
+    """
+    Fetch historical underwriting decisions (tickets/applications) for the current tenant.
+    """
+    history = db.query(CreditDecision).filter(CreditDecision.client_id == client.client_id).order_by(CreditDecision.created_at.desc()).all()
+    
+    return [
+        {
+            "id": record.id,
+            "applicant_id": record.applicant_id,
+            "decision": record.decision,
+            "risk_score": record.risk_score,
+            "dti_ratio": record.dti_ratio,
+            "created_at": record.created_at
+        }
+        for record in history
+    ]

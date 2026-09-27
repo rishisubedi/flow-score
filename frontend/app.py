@@ -16,7 +16,10 @@ st.markdown("Multi-Tenant LLM Underwriting Engine with BYOK Architecture & Meter
 if "x_api_key" not in st.session_state:
     st.session_state.x_api_key = "demo_bank:secret123"
 
-tab1, tab2 = st.tabs(["🚀 Underwriting Engine", "⚙️ Tenant Admin & Billing"])
+if "retry_submission" not in st.session_state:
+    st.session_state.retry_submission = False
+
+tab1, tab2, tab3 = st.tabs(["🚀 Underwriting Engine", "⚙️ Tenant Admin & Billing", "📜 Historical Audits"])
 
 with tab2:
     st.header("SaaS Tenant Configuration")
@@ -89,6 +92,34 @@ with tab2:
             else:
                 st.error("Register tenant first.")
 
+with tab3:
+    st.header("Historical Underwriting Decisions")
+    st.markdown("View past applications/tickets processed by the AI.")
+    
+    if st.button("Refresh History"):
+        headers = {"X-API-Key": st.session_state.x_api_key}
+        
+        with st.spinner("Fetching historical tickets..."):
+            try:
+                # Add slight artificial delay to make the loading state obvious for UX
+                time.sleep(0.5) 
+                hist_resp = requests.get(f"{API_URL}history", headers=headers)
+                
+                if hist_resp.status_code == 200:
+                    hist_data = hist_resp.json()
+                    if not hist_data:
+                        st.info("No historical tickets found. Run an underwriting job first!")
+                    else:
+                        for record in hist_data:
+                            with st.expander(f"Applicant: {record['applicant_id']} | Date: {record['created_at'][:10]}"):
+                                st.write(f"**Decision:** {record['decision']}")
+                                st.write(f"**Risk Score:** {record['risk_score']}")
+                                st.write(f"**DTI Ratio:** {record['dti_ratio']}")
+                else:
+                    st.error(f"Failed to fetch history (Error {hist_resp.status_code}). Please check your API Key and connection.")
+            except requests.exceptions.ConnectionError:
+                st.error("Failed to connect to the server to fetch history. Please try again.")
+
 with tab1:
     preset_scenarios = {
         "1. Standard Gig Worker (Volatile but solvent)": {
@@ -128,10 +159,15 @@ with tab1:
     with col2:
         st.subheader("🧠 Multi-Agent Analysis")
         
-        if st.button("🚀 Run AI Underwriting (Consumes 1 Credit)", type="primary", use_container_width=True):
+        # Check if retry was triggered
+        submit_triggered = st.button("🚀 Run AI Underwriting (Consumes 1 Credit)", type="primary", use_container_width=True)
+        if st.session_state.retry_submission:
+            submit_triggered = True
+            st.session_state.retry_submission = False
+        
+        if submit_triggered:
             try:
                 payload = json.loads(payload_str)
-                # Generate unique idempotency key for this button click
                 idempotency_key = str(uuid.uuid4())
                 headers = {
                     "X-API-Key": st.session_state.x_api_key,
@@ -154,6 +190,7 @@ with tab1:
                         st.write("Expense Tracker calculating baseline...")
                         
                         max_retries = 30
+                        status_data = None
                         for i in range(max_retries):
                             time.sleep(2) # Poll every 2 seconds
                             status_resp = requests.get(f"{API_URL}status/{job_id}", headers=headers)
@@ -164,14 +201,19 @@ with tab1:
                                     break
                                 elif status_data["status"] == "FAILED":
                                     status_box.update(label="Analysis Failed!", state="error", expanded=True)
-                                    st.error(status_data.get("error", "Unknown error in LangGraph"))
+                                    
+                                    # INLINE SUBMIT ERROR WITH RETRY
+                                    st.error(f"Inline Error: {status_data.get('error', 'Unknown error in LangGraph')}")
+                                    if st.button("Retry Submission", key=f"retry_{job_id}"):
+                                        st.session_state.retry_submission = True
+                                        st.rerun()
                                     st.stop()
                                 else:
                                     st.write(f"Polling Celery Worker... (Attempt {i+1}/{max_retries})")
                             else:
                                 st.write("Waiting for FastAPI...")
                                 
-                    if status_data["status"] == "COMPLETED":
+                    if status_data and status_data["status"] == "COMPLETED":
                         data = status_data["result"]
                         m1, m2, m3 = st.columns(3)
                         decision = data.get("decision", "UNKNOWN")
@@ -197,10 +239,16 @@ with tab1:
                 elif response.status_code == 401:
                     st.error("🔒 401 Unauthorized: Invalid API Key. Register your tenant first!")
                 else:
-                    st.error(f"Server Error {response.status_code}")
-                    st.write(response.text)
+                    # INLINE SUBMIT ERROR WITH RETRY
+                    st.error(f"Submission Error {response.status_code}: {response.text}")
+                    if st.button("Retry Submission", key="retry_btn_1"):
+                        st.session_state.retry_submission = True
+                        st.rerun()
                     
             except json.JSONDecodeError:
                 st.error("Invalid JSON format.")
             except requests.exceptions.ConnectionError:
                 st.error("Could not connect to FastAPI. Is it running?")
+                if st.button("Retry Connection", key="retry_btn_2"):
+                    st.session_state.retry_submission = True
+                    st.rerun()
