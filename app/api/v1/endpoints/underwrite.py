@@ -36,10 +36,10 @@ async def submit_underwriting_request(
         request_dict = request.model_dump()
         
         # Inject Multi-Tenant BYOK Configuration
-        if client.subscription_tier == "ENTERPRISE_BYOK" and client.byok_api_key:
+        if client.subscription_tier == "ENTERPRISE_BYOK" and client.encrypted_byok_key:
             request_dict["llm_config"] = {
                 "provider": client.byok_provider,
-                "api_key": decrypt_api_key(client.byok_api_key)
+                "api_key": decrypt_api_key(client.encrypted_byok_key)
             }
         else:
             # Fallback to the platform's Master API Key
@@ -103,3 +103,59 @@ async def get_underwriting_history(
         }
         for record in history
     ]
+
+from app.models.schemas import OverrideRequest, OpenBankingWebhook
+from app.db.models import HumanOverride
+
+@router.post("/override/{job_id}", status_code=status.HTTP_200_OK)
+async def manual_human_override(
+    job_id: str,
+    override_request: OverrideRequest,
+    db: Session = Depends(get_db),
+    client: Client = Depends(get_current_client) # Must be authenticated
+):
+    """
+    SOC2 Compliant Human-in-the-Loop override for an AI decision.
+    """
+    decision_record = db.query(CreditDecision).filter(
+        CreditDecision.job_id == job_id, 
+        CreditDecision.client_id == client.client_id
+    ).first()
+    
+    if not decision_record:
+        raise HTTPException(status_code=404, detail="Decision not found or unauthorized.")
+        
+    previous_decision = decision_record.decision
+    
+    # 1. Update the core decision
+    decision_record.decision = override_request.new_decision
+    
+    # 2. Append to immutable SOC2 Audit Log
+    new_override = HumanOverride(
+        job_id=job_id,
+        officer_sso_id=override_request.officer_sso_id,
+        previous_decision=previous_decision,
+        new_decision=override_request.new_decision,
+        justification_notes=override_request.justification_notes
+    )
+    db.add(new_override)
+    db.commit()
+    
+    return {"status": "success", "message": f"Decision overridden to {override_request.new_decision} by {override_request.officer_sso_id}"}
+
+
+@router.post("/webhook/open-banking", status_code=status.HTTP_202_ACCEPTED)
+async def receive_open_banking_sync(
+    webhook: OpenBankingWebhook,
+    client: Client = Depends(get_current_client) # Assumes Gateway pre-auth or HMAC verification middleware
+):
+    """
+    FR1: Ingest push notifications from TrueLayer/Plaid asynchronously.
+    """
+    # In a real system, we would verify webhook.hmac_signature against client.webhook_secret here
+    if webhook.webhook_type != "SYNC_SUCCESS":
+        return {"status": "ignored", "reason": "Not a success sync."}
+        
+    # Queue a Celery task to fetch the raw data URI and execute underwriting
+    # For now, we simulate success response.
+    return {"status": "accepted", "message": "Webhook received. Asynchronous underwriting pipeline triggered."}

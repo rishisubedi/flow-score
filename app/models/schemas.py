@@ -26,6 +26,7 @@ class UnderwritingRequest(BaseModel):
     applicant_id: str = Field(..., max_length=50)
     transactions: List[Transaction] = Field(..., min_length=1, max_length=5000, description="Cap at 5000 to prevent LLM context window overflow (Denial of Wallet).")
     policy: Optional[LenderPolicy] = Field(default_factory=LenderPolicy, description="Lender's custom risk appetite.")
+    custom_rules: Optional[str] = Field(None, description="YAML formatted dynamic rules (e.g. 'Reject if Gambling > 15%').")
     webhook_url: Optional[HttpUrl] = Field(None, description="URL for async callback when decision is ready.")
 
 # --- Output Models (FCA Compliant & Dual-Layer) ---
@@ -48,3 +49,16 @@ class CreditDecisionOutput(BaseModel):
     decision: Literal["APPROVED", "REJECTED", "MANUAL_REVIEW"]
     dti_ratio: float
     audit_trail: FCAAuditTrail
+
+# --- Enterprise Extensions ---
+class OverrideRequest(BaseModel):
+    officer_sso_id: str = Field(..., description="Auth0/Okta SSO ID of the human overriding the decision.")
+    new_decision: Literal["APPROVED", "REJECTED", "MANUAL_REVIEW"]
+    justification_notes: str = Field(..., min_length=10, description="Mandatory justification for SOC2 audit logging.")
+
+class OpenBankingWebhook(BaseModel):
+    webhook_type: Literal["SYNC_SUCCESS", "SYNC_FAILED"]
+    provider: Literal["PLAID", "TRUELAYER"]
+    applicant_id: str
+    raw_data_uri: HttpUrl
+    hmac_signature: str = Field(..., description="For verifying the payload originates from the provider.")

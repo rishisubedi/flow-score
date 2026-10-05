@@ -30,8 +30,9 @@ def create_client(client: ClientCreate, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="Client already registered")
         
     client_dict = client.model_dump()
-    if client_dict.get("byok_api_key"):
-        client_dict["byok_api_key"] = encrypt_api_key(client_dict["byok_api_key"])
+    raw_key = client_dict.pop("byok_api_key", None)
+    if raw_key:
+        client_dict["encrypted_byok_key"] = encrypt_api_key(raw_key)
         
     new_client = Client(**client_dict)
     db.add(new_client)
@@ -47,8 +48,9 @@ def update_client(client_id: str, update_data: ClientUpdate, db: Session = Depen
         
     for key, value in update_data.model_dump(exclude_unset=True).items():
         if key == "byok_api_key" and value:
-            value = encrypt_api_key(value)
-        setattr(db_client, key, value)
+            setattr(db_client, "encrypted_byok_key", encrypt_api_key(value))
+        else:
+            setattr(db_client, key, value)
         
     db.commit()
     return {"message": "Client updated"}

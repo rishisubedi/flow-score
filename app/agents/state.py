@@ -14,6 +14,7 @@ class AgentState(TypedDict):
     applicant_id: str
     transactions: List[Transaction]
     policy: LenderPolicy
+    custom_rules: Optional[str]
     
     # Data pipeline outputs
     categorized_transactions: List[Dict[str, Any]]

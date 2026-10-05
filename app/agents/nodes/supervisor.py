@@ -32,11 +32,15 @@ def supervisor_node(state: AgentState) -> dict:
         - Min monthly income: {min_income}
         - Strict FCA Mode: {strict_fca}
         
+        Dynamic Business Rules (YAML/JSON):
+        {custom_rules}
+        
         Rules:
         1. Calculate the final Debt-to-Income (DTI) ratio. (baseline_expenses / total_income).
-        2. Generate a risk_score from 0 (terrible) to 1000 (perfect).
-        3. Determine if they are APPROVED, REJECTED, or need MANUAL_REVIEW based on the policy constraints.
-        4. Produce a Dual-Layer Audit Trail:
+        2. Evaluate the Dynamic Business Rules strictly. If any rule fails, instantly set decision to REJECTED.
+        3. Generate a risk_score from 0 (terrible) to 1000 (perfect).
+        4. Determine if they are APPROVED, REJECTED, or need MANUAL_REVIEW based on the policy constraints.
+        5. Produce a Dual-Layer Audit Trail:
            a. An internal log for compliance officers detailing the math and logic.
            b. A consumer-facing explanation adhering strictly to FCA transparency (clear, polite, non-discriminatory).
         """),
@@ -62,6 +66,7 @@ def supervisor_node(state: AgentState) -> dict:
             "max_dti": policy.get("max_dti_allowed", 0.45) if policy else 0.45,
             "min_income": policy.get("min_monthly_income", 1000.0) if policy else 1000.0,
             "strict_fca": policy.get("strict_fca_mode", True) if policy else True,
+            "custom_rules": state.get("custom_rules", "No dynamic rules provided."),
             "income": income,
             "expense": expense
         })

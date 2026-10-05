@@ -18,6 +18,21 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+import uuid
+import logging
+from fastapi import Request
+logger = logging.getLogger(__name__)
+
+@app.middleware("http")
+async def add_trace_id_and_log(request: Request, call_next):
+    """Simulates OpenTelemetry Trace ID propagation for observability."""
+    trace_id = request.headers.get("X-Trace-ID", str(uuid.uuid4()))
+    logger.info(f"Trace[{trace_id}] - Request Started: {request.method} {request.url.path}")
+    response = await call_next(request)
+    response.headers["X-Trace-ID"] = trace_id
+    logger.info(f"Trace[{trace_id}] - Request Completed: Status {response.status_code}")
+    return response
+
 @app.get("/", tags=["Health"])
 def root():
     return {"message": "Welcome to the FlowScore API"}
