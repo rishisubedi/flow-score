@@ -1,6 +1,6 @@
 # FlowScore: Open Banking Underwriting Engine
 
-FlowScore is a B2B SaaS platform that utilizes **Multi-Agent Large Language Models (LLMs)** and **Open Banking APIs** to instantly underwrite loans for "Thin-File" borrowers. Built specifically to comply with the **UK FCA Consumer Duty** regulations, FlowScore generates transparent, dual-layer cryptographic audit trails for every credit decision.
+FlowScore is a B2B SaaS platform that utilizes **Multi-Agent Large Language Models (LLMs)** and **Open Banking APIs** to instantly underwrite loans for "Thin-File" borrowers. Built specifically to comply with the **UK FCA Consumer Duty** and **SOC2** regulations, FlowScore generates transparent, dual-layer cryptographic audit trails for every credit decision.
 
 ## 🎯 The Core Mission
 Legacy credit bureaus (Experian, Equifax) rely on decades of structured credit history to generate a score. This system inherently punishes:
@@ -19,7 +19,7 @@ In the UK financial sector, transparency is legally mandated. FlowScore is built
 ---
 
 ## 🛠️ Enterprise Architecture & Tech Stack
-FlowScore was recently upgraded to a decoupled, highly-scalable enterprise architecture capable of supporting Tier-1 banking volume.
+FlowScore runs on a decoupled, highly-scalable enterprise architecture capable of supporting Tier-1 banking volume.
 
 * **Backend & API:** Python 3.11+, FastAPI (Async)
 * **Message Broker & Background Tasks:** Celery + Redis
@@ -28,7 +28,7 @@ FlowScore was recently upgraded to a decoupled, highly-scalable enterprise archi
 * **Data Validation:** Pydantic (Strict Output Parsing)
 * **Database:** PostgreSQL (SQLAlchemy & Alembic)
 * **Frontend:** Streamlit (Open Banking Simulation Dashboard)
-* **Monetization & Safety:** Idempotency-Keys, Custom Billing Middleware, BYOK Integration
+* **Monetization & Security:** Idempotency-Keys, AES-256 KMS Encryption, SOC2 Audit Logging
 
 ## 🚀 Getting Started
 
@@ -85,7 +85,7 @@ The AI decision-making pipeline utilizes a highly optimized **Fan-Out / Fan-In**
 1. **API Ingestion (FastAPI):** Parses strict Pydantic schemas, validates Idempotency Keys (Redis), and dispatches the job to Celery, instantly returning a `202 Accepted` to prevent HTTP timeouts.
 2. **Parallel Fan-Out (Celery):** Data is routed simultaneously to the `Income Analyst` and `Expense Tracker` LangGraph nodes, cutting LLM inference latency in half.
 3. **Synchronized Fan-In:** A custom `merge_lists` reducer guarantees that parallel outputs and errors don't overwrite each other in the `AgentState` TypedDict.
-4. **Supervisor Node:** Synthesizes the parallel data to generate the final FCA-compliant audit trail and DTI calculation.
+4. **Supervisor Node:** Synthesizes the parallel data, injects **Dynamic YAML Rules**, and generates the final FCA-compliant audit trail and DTI calculation.
 
 ```mermaid
 graph TD
@@ -114,15 +114,19 @@ graph TD
 ```
 
 ## 💎 Enterprise SaaS Features Built-In
-We injected several commercial improvements to maximize our Total Addressable Market (TAM):
+We injected several commercial improvements to maximize our Total Addressable Market (TAM) and comply with Tier-1 banking security requirements:
+
+* **SOC2 Human-in-the-Loop (HITL) Overrides:** Risk Officers can override AI decisions via a secure `POST /override/{job_id}` endpoint. The system generates an immutable, relational SQL log (`HumanOverride` table) tracking the officer's SSO ID and their mandatory justification notes.
+* **KMS Database Encryption:** Plaintext API keys are strictly prohibited. The system utilizes `cryptography.fernet` to AES-256 encrypt all tenant BYOK keys at rest in PostgreSQL, decrypting them dynamically only in-memory during LangGraph execution.
+* **Dynamic Rule Injection:** Lenders can inject custom YAML logic (e.g., *"Reject instantly if Gambling > 15%"*) into the `UnderwritingRequest` payload, which the Chief Risk Officer (Supervisor) Agent strictly enforces before finalizing the LLM decision.
+* **Open Banking Webhook Ingestion:** Built-in `POST /webhook/open-banking` endpoint designed to ingest asynchronous push notifications (with HMAC signature validation) directly from Plaid/TrueLayer when a user's bank data finishes syncing.
+* **OpenTelemetry Observability:** Custom middleware injects a unique `X-Trace-ID` into the headers of every request, enabling distributed tracing across the API, Celery workers, and LLM nodes.
+* **Decoupled Architecture:** Synchronous HTTP processing was replaced with Celery message queues and Redis, eliminating API gateway timeouts during heavy LLM generation.
 * **Idempotency Keys:** Redis-backed request tracking prevents double-billing if a client experiences a network glitch and accidentally submits the same payload twice.
-* **Decoupled Architecture:** Replaced synchronous HTTP processing with Celery message queues, eliminating API gateway timeouts during heavy LLM generation.
 * **SaaS Billing & Metering:** Fully functional credit deduction system. Tenants hit a `402 Payment Required` wall when API credits run out.
-* **Bring Your Own Key (BYOK):** Enterprise tenants can inject their own Google Gemini or OpenAI API keys directly into the LangGraph state, dynamically re-routing LLM traffic to their own accounts to bypass rate limits.
+* **Bring Your Own Key (BYOK):** Enterprise tenants can inject their own Google Gemini or OpenAI API keys directly into the LangGraph state to bypass platform rate limits.
 * **O(1) Multi-Tenancy:** Securely support hundreds of B2B lenders on the same PostgreSQL database using `client_id` partitioning.
-* **Prompt Injection Protection:** Strict Pydantic RegEx constraints and Payload DoW (Denial of Wallet) capping to prevent malicious actors from hacking the LLM pipeline.
-* **Injectable Risk Appetites:** Lenders can dynamically inject their own custom DTI and income thresholds into the API payload.
-* **Dual-Layer Audit Trails:** Outputs a dense compliance log for the bank's risk officers, alongside a polite, consumer-facing explanation for their UI.
+* **Prompt Injection Protection:** Strict Pydantic RegEx constraints prevent malicious actors from hacking the LLM pipeline (e.g., placing *"IGNORE ALL INSTRUCTIONS"* in bank transfer descriptions).
 
 ---
 
@@ -151,7 +155,7 @@ The testing environment utilizes an in-memory SQLite database and intercepts dep
 
 ```python
 def test_human_override_soc2_compliance():
-    """Test that Risk Officers can manually override AI decisions and generate an immutable audit log (FR2)."""
+    """Test that Risk Officers can manually override AI decisions and generate an immutable audit log."""
     # ... [Seed fake AI decision] ...
     
     # Submit Risk Officer Override
@@ -183,17 +187,14 @@ FlowScore is continually evolving. Below are the planned architectural and featu
 1. **OAuth2 & Role-Based Access Control (RBAC):**
    * Implement strict JWT-based authentication to delineate platform permissions between `System Administrators` (manage billing/API keys), `Risk Officers` (view internal audit logs and override decisions), and `Standard Agents` (submit applications only).
 
-2. **Live Open Banking Webhook Ingestion:**
-   * Transition from simulated data payloads to live webhooks connected directly to **TrueLayer** or **Plaid** API endpoints, parsing raw banking XML/JSON instantly upon a customer connecting their account.
-
-3. **Real-Time Streaming via Server-Sent Events (SSE):**
+2. **Real-Time Streaming via Server-Sent Events (SSE):**
    * Replace the current short-polling mechanism (`GET /status/{job_id}`) with SSE or WebSockets. This will allow the frontend to stream the LangGraph execution steps (e.g., *"Income Analyst evaluating... Expense Tracker analyzing..."*) in real-time, providing a superior UI experience.
 
-4. **Multi-Modal Document Ingestion (OCR):**
+3. **Multi-Modal Document Ingestion (OCR):**
    * Add a pipeline to ingest and parse PDF paystubs and bank statements utilizing Gemini's native multi-modal capabilities. This acts as a fallback for applicants whose banks do not support Open Banking APIs.
 
-5. **Advanced Telemetry & Grafana Dashboards:**
+4. **Advanced Telemetry & Grafana Dashboards:**
    * Integrate Prometheus and Grafana to track critical business metrics: LLM token usage per tenant, average agent consensus latency, hallucination rates, and system-wide fallback occurrences.
 
-6. **Automated CI/CD Pipelines:**
+5. **Automated CI/CD Pipelines:**
    * Introduce GitHub Actions for automated unit testing (`pytest`), code linting, and building/pushing zero-downtime Docker images to AWS ECR / Google Artifact Registry.
