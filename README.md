@@ -1,37 +1,34 @@
-# FlowScore SaaS 🚀
+# FlowScore: Open Banking Underwriting Engine
 
-**An AI-Powered, Multi-Tenant SaaS Engine for Open Banking Credit Underwriting.**
+FlowScore is a B2B SaaS platform that utilizes **Multi-Agent Large Language Models (LLMs)** and **Open Banking APIs** to instantly underwrite loans for "Thin-File" borrowers. Built specifically to comply with the **UK FCA Consumer Duty** regulations, FlowScore generates transparent, dual-layer cryptographic audit trails for every credit decision.
 
-FlowScore is a B2B SaaS Risk Engine that leverages Multi-Agent AI to analyze Open Banking transaction data, providing fair, dynamic, and strictly explainable credit risk scores for "Thin-File" customers.
-
-## 🌍 Our Mission: Democratizing Credit in the UK
-
-In the UK, millions of people are locked out of the financial system or forced to rely on predatory, high-interest payday loans because they are deemed "thin-file" by traditional credit bureaus (Experian, Equifax, TransUnion). 
-
-These underserved groups primarily include:
-* **Immigrants & Expats:** New arrivals to the UK who have no local credit footprint, despite often having strong earning potential and responsible financial habits.
+## 🎯 The Core Mission
+Legacy credit bureaus (Experian, Equifax) rely on decades of structured credit history to generate a score. This system inherently punishes:
 * **Gig-Economy & Freelance Workers:** Uber drivers, Deliveroo riders, and self-employed creators whose income is volatile or irregular. Legacy banks struggle to underwrite these profiles because standard Debt-to-Income (DTI) models expect a fixed monthly salary.
-* **Young Adults:** Those entering the financial system for the first time without prior credit cards or mortgages.
+* **Young Adults & Immigrants:** Those entering the financial system for the first time without prior credit cards or mortgages.
 
 ### How FlowScore Fixes This
-FlowScore bypasses the traditional, outdated credit score. Instead, it ingests 12 months of rich, real-time **Open Banking data** (e.g., via TrueLayer or Plaid) and uses a network of specialized AI agents to evaluate a borrower's *true* cash flow. 
+FlowScore bypasses the traditional, outdated credit score. Instead, it ingests 12 months of rich, real-time **Open Banking data** (e.g., via TrueLayer or Plaid) and uses a network of specialized AI agents (via LangGraph) to evaluate a borrower's *true* cash flow. 
 
 * An **Income Analyst Agent** measures the stability, frequency, and trajectory of gig-economy payouts.
 * An **Expense Tracker Agent** isolates strict baseline living costs (rent, utilities, groceries) from discretionary spending.
 
 **FCA Consumer Duty Compliance:**
-In the UK financial sector, transparency is legally mandated. FlowScore is built strictly around the **FCA Consumer Duty** rules. Instead of an unexplainable "black-box" AI decision, FlowScore’s Supervisor Agent synthesizes the data and outputs a strict, natural-language **Audit Trail**. This ensures algorithmic transparency, fair value, and guarantees that lenders can clearly explain exactly *why* a decision was made to the consumer.
+In the UK financial sector, transparency is legally mandated. FlowScore is built strictly around the **FCA Consumer Duty** rules. Instead of an unexplainable "black-box" AI decision, FlowScore's Supervisor Agent synthesizes the data and outputs a strict, natural-language **Audit Trail**. This ensures algorithmic transparency, fair value, and guarantees that lenders can clearly explain exactly *why* a decision was made to the consumer.
 
 ---
 
-## 🛠️ Core Tech Stack
-* **Backend:** Python 3.11+, FastAPI
+## 🛠️ Enterprise Architecture & Tech Stack
+FlowScore was recently upgraded to a decoupled, highly-scalable enterprise architecture capable of supporting Tier-1 banking volume.
+
+* **Backend & API:** Python 3.11+, FastAPI (Async)
+* **Message Broker & Background Tasks:** Celery + Redis
 * **AI Orchestration:** LangGraph (Multi-Agent State Management)
-* **LLMs:** Google Gemini 3.8 Flash / OpenAI GPT-4o
+* **LLMs:** Google Gemini 1.5 Pro / OpenAI GPT-4o
 * **Data Validation:** Pydantic (Strict Output Parsing)
 * **Database:** PostgreSQL (SQLAlchemy & Alembic)
-* **Frontend:** Streamlit (Admin & Underwriting Dashboard)
-* **Monetization:** Custom Billing Middleware & BYOK Integration
+* **Frontend:** Streamlit (Open Banking Simulation Dashboard)
+* **Monetization & Safety:** Idempotency-Keys, Custom Billing Middleware, BYOK Integration
 
 ## 🚀 Getting Started
 
@@ -43,37 +40,25 @@ To run the FlowScore SaaS MVP locally:
    cd flow-score
    ```
 
-2. **Configure the Environment:**
-   Copy the example environment file and insert your platform API keys.
+2. **Start the Infrastructure (Cluster):**
+   Use Docker Compose to spin up the full decoupled cluster (FastAPI Web Server, Celery Worker, Redis Message Broker, and PostgreSQL Database).
    ```bash
-   cp .env.example .env
+   docker-compose up -d --build
    ```
 
-3. **Start the Infrastructure:**
-   Use Docker Compose to spin up the FastAPI web server and the local PostgreSQL database simultaneously.
+3. **Launch the Enterprise Demo UI:**
+   We have built a production-level Streamlit application to simulate Open Banking ingestion and visually interact with the AI Engine.
    ```bash
-   docker-compose up --build
+   pip install -r requirements.txt
+   python -m streamlit run frontend/app.py
    ```
+   Navigate to `http://localhost:8501` in your browser. You can select realistic customer profiles, view simulated bank ledgers, and execute AI underwriting jobs with visual FCA compliance auditing.
 
-4. **Run the Live Console Demo (Optional):**
-   Open a second terminal and run the included Python demo script to see the backend response in your CLI.
-   ```bash
-   python scripts/run_demo.py
-   ```
-
-5. **Launch the UI Dashboard (Recommended):**
-   We have built a Streamlit application to visually interact with the AI Engine.
-   ```bash
-   pip install streamlit requests
-   streamlit run frontend/app.py
-   ```
-   Navigate to `http://localhost:8501` in your browser. You can create a tenant account, purchase API credits, configure BYOK keys, and test edge cases.
-
-6. **Access the API Documentation:**
+4. **Access the API Documentation:**
    Navigate to `http://localhost:8080/docs` to interact with the auto-generated Swagger UI.
 
 ### 🛡️ Enterprise Resilience (Zero-Crash Fallback)
-The API is built to never crash, even if the upstream LLM API experiences an outage or hallucinations. If you run the demo without a valid API key, you will see the **Safety Net Override** in action (built during Day 9):
+The API is built to never crash. If the upstream LLM API experiences an outage, FlowScore intercepts the failure and outputs a **Safety Net Override**:
 ```json
 {
     "applicant_id": "gig_worker_9942",
@@ -84,10 +69,9 @@ The API is built to never crash, even if the upstream LLM API experiences an out
         "internal_compliance_log": {
             "income_volatility_score": 1.0,
             "expense_baseline": 0.0,
-            "affordability_logic": "System failure triggered safety override. Supervisor Agent Error: Unauthorized."
+            "affordability_logic": "System failure triggered safety override. Supervisor Agent Error."
         },
-        "customer_facing_explanation": "We are currently reviewing your application manually to ensure we provide you with the most accurate and fair assessment.",
-        "consumer_duty_statement": "In accordance with FCA guidelines, this decision has been paused for human review due to a system interruption."
+        "customer_facing_explanation": "We are currently reviewing your application manually to ensure we provide you with the most accurate and fair assessment."
     }
 }
 ```
@@ -95,59 +79,70 @@ This guarantees strict FCA compliance by never leaving a customer hanging or gen
 
 ---
 
-## 📅 Current Project Status (10-Day Sprint)
+## 🧠 Multi-Agent Architecture (LangGraph)
+The AI decision-making pipeline utilizes a highly optimized **Fan-Out / Fan-In** LangGraph architecture managed asynchronously by a **Celery Worker Pool**.
 
-**Sprint Completion: 100%**
-`[█▀█▀█▀█▀█▀█▀█▀█▀█▀█]`
-
-
-* **[x] Day 1:** Core Infrastructure, Dockerization, and FastAPI Setup.
-* **[x] Day 2:** PostgreSQL Database, SQLAlchemy ORM, and Strict Pydantic Schemas.
-* **[x] Day 3:** Core POST `/v1/underwrite` endpoint, Dependency Injection, and Async Webhooks.
-* **[x] Day 4:** LangGraph Foundation & State Definition.
-* **[x] Day 5:** Income Analyst Agent Implementation.
-* **[x] Day 6:** Expense Tracker Agent Implementation.
-* **[x] Day 7:** Supervisor Agent & FCA Explainability Layer.
-* **[x] Day 8:** Database Integration & Final Output Formatting.
-* **[x] Day 9:** Edge Cases, Pytest, & Handling LLM Hallucinations.
-* **[x] Day 10:** Final Polish, UI Dashboard, Cloud Run Deployment, & SaaS Billing.
-
-### 🧠 Multi-Agent Architecture (LangGraph)
-The AI decision-making pipeline utilizes a highly optimized **Fan-Out / Fan-In** LangGraph architecture:
-1. **Ingestion Node:** Parses strict Pydantic schemas and auto-categorizes B2B open banking payloads.
-2. **Parallel Fan-Out:** Data is routed simultaneously to the `Income Analyst` and `Expense Tracker` nodes, cutting LLM inference latency in half.
-3. **Synchronized Fan-In:** The custom `merge_lists` reducer guarantees that parallel outputs and errors don't overwrite each other in the `AgentState` TypedDict.
+1. **API Ingestion (FastAPI):** Parses strict Pydantic schemas, validates Idempotency Keys (Redis), and dispatches the job to Celery, instantly returning a `202 Accepted` to prevent HTTP timeouts.
+2. **Parallel Fan-Out (Celery):** Data is routed simultaneously to the `Income Analyst` and `Expense Tracker` LangGraph nodes, cutting LLM inference latency in half.
+3. **Synchronized Fan-In:** A custom `merge_lists` reducer guarantees that parallel outputs and errors don't overwrite each other in the `AgentState` TypedDict.
 4. **Supervisor Node:** Synthesizes the parallel data to generate the final FCA-compliant audit trail and DTI calculation.
 
 ```mermaid
 graph TD
-    Client["B2B Lender / FinTech"] -->|"POST /v1/underwrite"| API["FastAPI Web Server"]
-    API -->|"Async Threadpool"| Orchestrator["LangGraph Orchestrator"]
-
-    subgraph "Multi-Agent Consensus (LangGraph)"
-        direction TB
-        Ingest["Ingestion Node"] -->|"Fan-Out"| Income["Income Analyst Agent"]
-        Ingest -->|"Fan-Out"| Expense["Expense Tracker Agent"]
-        Income -->|"Fan-In"| Supervisor["Supervisor Agent"]
-        Expense -->|"Fan-In"| Supervisor
-    end
-
-    Orchestrator --> Ingest
-    Supervisor -->|"FCA Audit Trail"| Orchestrator
+    Client["B2B Lender / FinTech UI"] -->|"POST /v1/underwrite (Idempotency Key)"| API["FastAPI Server"]
+    API -->|"HTTP 202 Accepted"| Client
+    API -->|"Dispatch Job"| RedisBroker[(Redis Broker)]
     
-    API -->|"Save Decision"| DB[("PostgreSQL Database")]
-    API -.->|"Async Webhook"| Callback["Client Webhook URL"]
+    subgraph "Celery Worker Pool (Asynchronous Execution)"
+        direction TB
+        RedisBroker --> Worker["Celery Worker Process"]
+        Worker -->|"Invoke"| Orchestrator["LangGraph Orchestrator"]
+        
+        subgraph "Multi-Agent Consensus"
+            direction TB
+            Ingest["Ingestion Node"] -->|"Fan-Out"| Income["Income Analyst Agent"]
+            Ingest -->|"Fan-Out"| Expense["Expense Tracker Agent"]
+            Income -->|"Fan-In"| Supervisor["Supervisor Agent"]
+            Expense -->|"Fan-In"| Supervisor
+        end
+        Orchestrator --> Ingest
+        Supervisor -->|"FCA Audit Trail"| Orchestrator
+    end
+    
+    Worker -->|"Save Decision"| DB[("PostgreSQL Database")]
+    Client -->|"GET /status/{job_id}"| API
 ```
 
-### 💼 Enterprise SaaS Features Built-In
-During the sprint, we injected several commercial improvements to maximize our Total Addressable Market (TAM):
+## 💎 Enterprise SaaS Features Built-In
+We injected several commercial improvements to maximize our Total Addressable Market (TAM):
+* **Idempotency Keys:** Redis-backed request tracking prevents double-billing if a client experiences a network glitch and accidentally submits the same payload twice.
+* **Decoupled Architecture:** Replaced synchronous HTTP processing with Celery message queues, eliminating API gateway timeouts during heavy LLM generation.
 * **SaaS Billing & Metering:** Fully functional credit deduction system. Tenants hit a `402 Payment Required` wall when API credits run out.
 * **Bring Your Own Key (BYOK):** Enterprise tenants can inject their own Google Gemini or OpenAI API keys directly into the LangGraph state, dynamically re-routing LLM traffic to their own accounts to bypass rate limits.
 * **O(1) Multi-Tenancy:** Securely support hundreds of B2B lenders on the same PostgreSQL database using `client_id` partitioning.
-* **Async Webhooks with Exponential Backoff:** Non-blocking callbacks that automatically retry (using `tenacity`) if the client's server goes down, preventing audit-trail data loss.
 * **Prompt Injection Protection:** Strict Pydantic RegEx constraints and Payload DoW (Denial of Wallet) capping to prevent malicious actors from hacking the LLM pipeline.
 * **Injectable Risk Appetites:** Lenders can dynamically inject their own custom DTI and income thresholds into the API payload.
 * **Dual-Layer Audit Trails:** Outputs a dense compliance log for the bank's risk officers, alongside a polite, consumer-facing explanation for their UI.
 
-## 📖 Documentation & Architecture
-For a deep dive into the Multi-Agent consensus network and the database schema, please read the [Technical Specification Document (TSD)](TECHNICAL_SPECIFICATION.md).
+---
+
+## 🔮 Future Roadmap (Potential Improvements)
+FlowScore is continually evolving. Below are the planned architectural and feature improvements to further dominate the B2B lending space:
+
+1. **OAuth2 & Role-Based Access Control (RBAC):**
+   * Implement strict JWT-based authentication to delineate platform permissions between `System Administrators` (manage billing/API keys), `Risk Officers` (view internal audit logs and override decisions), and `Standard Agents` (submit applications only).
+
+2. **Live Open Banking Webhook Ingestion:**
+   * Transition from simulated data payloads to live webhooks connected directly to **TrueLayer** or **Plaid** API endpoints, parsing raw banking XML/JSON instantly upon a customer connecting their account.
+
+3. **Real-Time Streaming via Server-Sent Events (SSE):**
+   * Replace the current short-polling mechanism (`GET /status/{job_id}`) with SSE or WebSockets. This will allow the frontend to stream the LangGraph execution steps (e.g., *“Income Analyst evaluating... Expense Tracker analyzing...”*) in real-time, providing a superior UI experience.
+
+4. **Multi-Modal Document Ingestion (OCR):**
+   * Add a pipeline to ingest and parse PDF paystubs and bank statements utilizing Gemini’s native multi-modal capabilities. This acts as a fallback for applicants whose banks do not support Open Banking APIs.
+
+5. **Advanced Telemetry & Grafana Dashboards:**
+   * Integrate Prometheus and Grafana to track critical business metrics: LLM token usage per tenant, average agent consensus latency, hallucination rates, and system-wide fallback occurrences.
+
+6. **Automated CI/CD Pipelines:**
+   * Introduce GitHub Actions for automated unit testing (`pytest`), code linting, and building/pushing zero-downtime Docker images to AWS ECR / Google Artifact Registry.
