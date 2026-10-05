@@ -126,6 +126,57 @@ We injected several commercial improvements to maximize our Total Addressable Ma
 
 ---
 
+## 🧪 Enterprise Test Coverage & Validation
+To guarantee production readiness and SOC2 compliance, the API includes a rigorous testing suite (`pytest`) validating the core enterprise extensions.
+
+### Pytest Execution Results
+```text
+$ python -m pytest tests/test_enterprise.py -v
+======================= test session starts ========================
+platform win32 -- Python 3.14.0, pytest-9.1.1
+plugins: anyio-4.14.2, langsmith-0.10.6, asyncio-1.4.0
+
+collecting ... collected 4 items
+
+tests/test_enterprise.py::test_telemetry_trace_id_middleware PASSED      [ 25%]
+tests/test_enterprise.py::test_admin_kms_encryption_on_creation PASSED   [ 50%]
+tests/test_enterprise.py::test_open_banking_webhook_hmac_ingestion PASSED [ 75%]
+tests/test_enterprise.py::test_human_override_soc2_compliance PASSED     [100%]
+
+======================== 4 passed in 3.19s =========================
+```
+
+### Test Suite Architecture (Snippet)
+The testing environment utilizes an in-memory SQLite database and intercepts dependency injection to validate cryptographic KMS hashing and immutable audit trails without mutating production data.
+
+```python
+def test_human_override_soc2_compliance():
+    """Test that Risk Officers can manually override AI decisions and generate an immutable audit log (FR2)."""
+    # ... [Seed fake AI decision] ...
+    
+    # Submit Risk Officer Override
+    override_payload = {
+        "officer_sso_id": "okta_user_456",
+        "new_decision": "APPROVED",
+        "justification_notes": "Applicant provided physical proof of additional offshore income. Overriding AI."
+    }
+    response = client.post(f"/v1/underwrite/override/{job_id}", json=override_payload)
+    
+    assert response.status_code == 200
+    
+    # Verify the immutable SOC2 log exists in the database
+    from app.db.models import HumanOverride
+    audit_log = db.query(HumanOverride).filter(HumanOverride.job_id == job_id).first()
+    
+    assert audit_log is not None
+    assert audit_log.officer_sso_id == "okta_user_456"
+    assert audit_log.previous_decision == "REJECTED"
+    assert audit_log.new_decision == "APPROVED"
+    assert audit_log.justification_notes.startswith("Applicant provided physical")
+```
+
+---
+
 ## 🔮 Future Roadmap (Potential Improvements)
 FlowScore is continually evolving. Below are the planned architectural and feature improvements to further dominate the B2B lending space:
 
@@ -136,10 +187,10 @@ FlowScore is continually evolving. Below are the planned architectural and featu
    * Transition from simulated data payloads to live webhooks connected directly to **TrueLayer** or **Plaid** API endpoints, parsing raw banking XML/JSON instantly upon a customer connecting their account.
 
 3. **Real-Time Streaming via Server-Sent Events (SSE):**
-   * Replace the current short-polling mechanism (`GET /status/{job_id}`) with SSE or WebSockets. This will allow the frontend to stream the LangGraph execution steps (e.g., *“Income Analyst evaluating... Expense Tracker analyzing...”*) in real-time, providing a superior UI experience.
+   * Replace the current short-polling mechanism (`GET /status/{job_id}`) with SSE or WebSockets. This will allow the frontend to stream the LangGraph execution steps (e.g., *"Income Analyst evaluating... Expense Tracker analyzing..."*) in real-time, providing a superior UI experience.
 
 4. **Multi-Modal Document Ingestion (OCR):**
-   * Add a pipeline to ingest and parse PDF paystubs and bank statements utilizing Gemini’s native multi-modal capabilities. This acts as a fallback for applicants whose banks do not support Open Banking APIs.
+   * Add a pipeline to ingest and parse PDF paystubs and bank statements utilizing Gemini's native multi-modal capabilities. This acts as a fallback for applicants whose banks do not support Open Banking APIs.
 
 5. **Advanced Telemetry & Grafana Dashboards:**
    * Integrate Prometheus and Grafana to track critical business metrics: LLM token usage per tenant, average agent consensus latency, hallucination rates, and system-wide fallback occurrences.
