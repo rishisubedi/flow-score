@@ -18,6 +18,28 @@ In the UK financial sector, transparency is legally mandated. FlowScore is built
 
 ---
 
+## 📊 The Science of Creditworthiness: Traditional vs. Open Banking
+
+Understanding *how* credit is traditionally measured is critical to understanding why FlowScore exists.
+
+### The Traditional Model (FICO / Experian)
+Legacy bureaus determine creditworthiness by looking backward at a consumer's **relationship with debt**. The major factors are:
+1. **Payment History (35%):** Have you missed payments on past loans?
+2. **Credit Utilization (30%):** How much of your available credit limit are you using?
+3. **Credit Age (15%):** How long have your accounts been open?
+
+**The Fatal Flaw:** Traditional scoring requires you to go into debt to prove you can handle debt. If you are a young professional, a recent immigrant, or someone who strictly uses debit cards, you have a **"Thin-File"**. Even if you earn £100,000 a year, legacy systems will reject you because they have no historical data on you.
+
+### The FlowScore Model (Cash Flow Underwriting)
+FlowScore completely ignores legacy credit scores. Instead, we use Open Banking to analyze a consumer's **actual liquidity and affordability** in real-time. The factors that *actually* matter to our AI are:
+
+1. **Income Volatility & Trajectory:** We don't just look for a fixed salary. The *Income Analyst Agent* identifies recurring freelance payouts, assesses their stability, and projects future earnings.
+2. **Fixed vs. Discretionary Expense Baselines:** The *Expense Tracker Agent* separates strict survival costs (rent, utilities, groceries) from discretionary spending (dining, entertainment) to find the borrower's true disposable income.
+3. **Behavioral Risk Markers:** We flag dangerous financial behaviors that legacy bureaus miss, such as chronic overdraft usage, returned direct debits, or excessive gambling transactions.
+4. **True Debt-to-Income (DTI) Ratio:** Ultimately, the system mathematically calculates whether the applicant's net cash flow can safely absorb the new loan repayment without causing financial distress.
+
+---
+
 ## 🛠️ Enterprise Architecture & Tech Stack
 FlowScore runs on a decoupled, highly-scalable enterprise architecture capable of supporting Tier-1 banking volume.
 
