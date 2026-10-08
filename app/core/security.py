@@ -25,14 +25,20 @@ SECRET_KEY = settings.OPENAI_API_KEY if hasattr(settings, "OPENAI_API_KEY") else
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60
 
+import hashlib
+
 # --- Hashing Utilities ---
+def _preprocess_secret(secret: str) -> str:
+    """Pre-hashes the secret using SHA-256 to bypass Bcrypt's 72-byte limit."""
+    return hashlib.sha256(secret.encode('utf-8')).hexdigest()
+
 def verify_hash(plain_text: str, hashed_text: str) -> bool:
-    """Verifies a plaintext secret against a bcrypt hash."""
-    return pwd_context.verify(plain_text, hashed_text)
+    """Verifies a plaintext secret against a bcrypt hash, using SHA-256 preprocessing."""
+    return pwd_context.verify(_preprocess_secret(plain_text), hashed_text)
 
 def get_hash(secret: str) -> str:
-    """Generates a bcrypt hash for a secret string."""
-    return pwd_context.hash(secret)
+    """Generates a bcrypt hash for a secret string, using SHA-256 preprocessing."""
+    return pwd_context.hash(_preprocess_secret(secret))
 
 # --- JWT Utilities ---
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
