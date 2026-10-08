@@ -15,8 +15,17 @@ from app.worker import process_underwriting_task, celery_app
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
-# Initialize Redis client for Idempotency
-redis_client = redis.Redis.from_url(settings.REDIS_URL, decode_responses=True)
+# Initialize Redis client for Idempotency (Fallback to dict for local dev)
+try:
+    redis_client = redis.Redis.from_url(settings.REDIS_URL, decode_responses=True)
+    redis_client.ping() # Test connection
+except (redis.exceptions.ConnectionError, ValueError):
+    logger.warning("Redis is not available. Idempotency checks will use a local dict (dev mode).")
+    class MockRedis:
+        def __init__(self): self.cache = {}
+        def get(self, k): return self.cache.get(k)
+        def setex(self, k, t, v): self.cache[k] = v
+    redis_client = MockRedis()
 
 @router.post("/", status_code=status.HTTP_202_ACCEPTED)
 async def submit_underwriting_request(
@@ -55,10 +64,14 @@ async def submit_underwriting_request(
             str(request.webhook_url) if request.webhook_url else None
         )
         
-        # Save Idempotency Key
+        # Save Idempotency Key and local eager result
         if idempotency_key:
             # Expire idempotency key after 24 hours
             redis_client.setex(cache_key, 86400, task.id)
+            
+        if celery_app.conf.task_always_eager:
+            # Manually cache the result for the local dev status endpoint
+            redis_client.setex(f"eager_{task.id}", 300, {"status": "COMPLETED", "result": task.result})
             
         return {"status": "accepted", "job_id": task.id}
         
@@ -71,6 +84,12 @@ async def submit_underwriting_request(
 
 @router.get("/status/{job_id}")
 async def get_job_status(job_id: str):
+    if celery_app.conf.task_always_eager:
+        data = redis_client.get(f"eager_{job_id}")
+        if data:
+            return {"job_id": job_id, "status": data["status"], "result": data["result"]}
+        return {"job_id": job_id, "status": "FAILED", "error": "Local Eager task not found in cache."}
+
     task_result = celery_app.AsyncResult(job_id)
     
     if task_result.state == 'PENDING':

@@ -13,12 +13,21 @@ celery_app = Celery(
     backend=settings.REDIS_URL
 )
 
+# Detect if Redis is available, if not, run inline
+import redis
+try:
+    redis.Redis.from_url(settings.REDIS_URL).ping()
+    is_eager = False
+except Exception:
+    is_eager = True
+
 celery_app.conf.update(
     task_serializer="json",
     accept_content=["json"],
     result_serializer="json",
     timezone="UTC",
     enable_utc=True,
+    task_always_eager=is_eager,  # Run synchronously if no Redis
 )
 
 def deliver_webhook_sync(webhook_url: str, payload: dict):

@@ -65,10 +65,9 @@ def test_telemetry_trace_id_middleware():
 
 
 def test_admin_kms_encryption_on_creation():
-    """Test that creating a tenant with a BYOK key properly encrypts it and does not store plaintext."""
+    """Test that creating a tenant correctly uses BCrypt for the API Key and Fernet for BYOK key."""
     payload = {
         "client_id": f"enterprise_{uuid.uuid4().hex[:8]}",
-        "api_key_hash": "some_hash",
         "subscription_tier": "ENTERPRISE_BYOK",
         "byok_provider": "openai",
         "byok_api_key": "sk-super-secret-plaintext-key"
@@ -76,16 +75,45 @@ def test_admin_kms_encryption_on_creation():
     
     response = client.post("/v1/admin/client/", json=payload)
     assert response.status_code == 200
+    assert "raw_api_key" in response.json()
     
     # Verify in database that it's encrypted
     db = TestingSessionLocal()
     db_client = db.query(Client).filter(Client.client_id == payload["client_id"]).first()
     
     assert db_client is not None
+    # 1. Check BYOK KMS (Fernet)
     assert db_client.byok_api_key is None # Legacy plaintext field MUST be null
     assert db_client.encrypted_byok_key is not None
     assert db_client.encrypted_byok_key != "sk-super-secret-plaintext-key" # Must be encrypted
     assert db_client.encrypted_byok_key.startswith("gAAAAA") # Fernet token signature
+    
+    # 2. Check API Key Hashing (Bcrypt)
+    from app.core.security import verify_hash
+    raw_api_key = response.json()["raw_api_key"]
+    assert verify_hash(raw_api_key, db_client.api_key_hash)
+
+
+def test_auth_jwt_login():
+    """Test that Risk Officers can securely log in via OAuth2 to receive a JWT Token."""
+    # Standard OAuth2 Form Data
+    login_data = {
+        "username": "risk_officer_1",
+        "password": "some_password"
+    }
+    response = client.post("/v1/auth/login", data=login_data)
+    
+    assert response.status_code == 200
+    token_data = response.json()
+    assert "access_token" in token_data
+    assert token_data["token_type"] == "bearer"
+    
+    # Verify we can use the token
+    token = token_data["access_token"]
+    me_response = client.get(f"/v1/auth/me?token={token}")
+    assert me_response.status_code == 200
+    assert me_response.json()["username"] == "risk_officer_1"
+    assert me_response.json()["role"] == "Risk_Officer"
 
 
 def test_open_banking_webhook_hmac_ingestion():
