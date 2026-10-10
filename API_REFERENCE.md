@@ -15,7 +15,7 @@ For automated services communicating with FlowScore (e.g., your FinTech app subm
 * **Note:** API Keys are generated once during Tenant Creation. They are securely pre-hashed using SHA-256 and BCrypt before being stored in our PostgreSQL database. You must store the raw key securely upon generation.
 
 ```http
-X-API-Key: fs_live_tenantA_8xK9pL2...
+X-API-Key: <YOUR_GENERATED_API_KEY>
 ```
 
 ### 2. OAuth2 Bearer Tokens (Human UI)
@@ -52,7 +52,7 @@ Creates a new lender profile on the platform and generates a mathematically secu
 {
   "message": "Client created. STORE THIS API KEY NOW. IT WILL NEVER BE SHOWN AGAIN.",
   "client_id": "tenant_monzo_uk",
-  "raw_api_key": "fs_live_tenant_monzo_uk_aBCdEfGhIjKlMnOpQrStUvWxYz123456"
+  "raw_api_key": "<YOUR_GENERATED_API_KEY>"
 }
 ```
 
@@ -92,7 +92,7 @@ Ingests 12 months of Open Banking data and dispatches the LangGraph AI multi-age
 
 **Request Headers:**
 ```http
-X-API-Key: fs_live_tenant_monzo_uk_aBCd...
+X-API-Key: <YOUR_GENERATED_API_KEY>
 Idempotency-Key: 123e4567-e89b-12d3-a456-426614174000
 ```
 
